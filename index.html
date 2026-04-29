@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Block Zero</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Russo+One&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="layout">
+    <section class="panel panel-left">
+      <p class="eyebrow" data-i18n="menu.eyebrow">Chaos District</p>
+      <h1>Block Zero</h1>
+      <p class="description" data-i18n="menu.description">
+        The city has snapped: hellhounds, biomutants, and mechanized killers are closing in from every side. Hold Block Zero before it sinks into chaos.
+      </p>
+
+      <div class="language-switcher" role="group" aria-label="Language">
+        <span data-i18n="language.label">Language</span>
+        <button class="language-button active" type="button" data-language-option="en" aria-pressed="true">EN</button>
+        <button class="language-button" type="button" data-language-option="ru" aria-pressed="false">RU</button>
+      </div>
+
+      <div class="controls">
+        <div>
+          <span data-i18n="controls.move">Move</span>
+          <strong data-i18n="controls.moveKeys">WASD / arrows</strong>
+        </div>
+        <div>
+          <span data-i18n="controls.aim">Aim</span>
+          <strong data-i18n="controls.aimKeys">Mouse</strong>
+        </div>
+        <div>
+          <span data-i18n="controls.fire">Fire</span>
+          <strong data-i18n="controls.fireKeys">LMB / space</strong>
+        </div>
+        <div>
+          <span data-i18n="controls.dash">Dash</span>
+          <strong>Shift</strong>
+        </div>
+      </div>
+
+      <div class="profile-strip">
+        <span data-i18n="ui.credits">Credits</span>
+        <strong id="metaTeaserCredits">0</strong>
+      </div>
+
+      <div class="audio-panel">
+        <p class="audio-title" data-i18n="ui.audio">Audio</p>
+        <label class="audio-control">
+          <span data-i18n="ui.masterVolume">Master volume</span>
+          <input id="masterVolume" type="range" min="0" max="100" value="70">
+        </label>
+        <label class="audio-control">
+          <span data-i18n="ui.music">Music</span>
+          <input id="musicVolume" type="range" min="0" max="100" value="68">
+        </label>
+        <label class="audio-control">
+          <span data-i18n="ui.sfx">Effects</span>
+          <input id="sfxVolume" type="range" min="0" max="100" value="82">
+        </label>
+      </div>
+
+      <section class="leaderboard-panel">
+        <div class="leaderboard-head">
+          <p class="audio-title" data-i18n="leaderboard.title">Top 100</p>
+          <strong id="leaderboardCount">0 entries</strong>
+        </div>
+        <div class="leaderboard-table">
+          <div class="leaderboard-row leaderboard-row-head">
+            <span>#</span>
+            <span data-i18n="leaderboard.name">Name</span>
+            <span data-i18n="leaderboard.scoreShort">Score</span>
+            <span data-i18n="leaderboard.killsShort">K</span>
+            <span data-i18n="leaderboard.waveShort">W</span>
+          </div>
+          <div id="leaderboardBody" class="leaderboard-body"></div>
+        </div>
+      </section>
+
+      <div class="menu-actions">
+        <button id="startButton" class="action" data-i18n="ui.startGame">Start Sweep</button>
+        <button id="menuMetaButton" class="action action-ghost" data-i18n="ui.upgrades">Upgrades</button>
+      </div>
+    </section>
+
+    <section class="arena-shell">
+      <div id="fullscreenRoot" class="fullscreen-root">
+      <div id="gameFrame" class="canvas-frame">
+        <canvas id="gameCanvas" width="1120" height="680" aria-label="Game field" data-i18n-aria-label="ui.gameCanvas"></canvas>
+
+        <button id="fullscreenButton" class="fullscreen-button" type="button" aria-label="Fullscreen" title="Fullscreen" data-i18n-aria-label="ui.fullscreen" data-i18n-title="ui.fullscreen">
+          ⛶
+        </button>
+
+        <div class="game-hud-overlay">
+          <div class="hud">
+            <div class="hud-card hud-card-health">
+              <div class="hud-health-top">
+                <span data-i18n="ui.health">Health</span>
+                <strong id="healthValue">100 / 100</strong>
+              </div>
+              <div id="healthBar" class="health-bar">
+                <div id="healthBarFill" class="health-bar-fill"></div>
+                <div class="health-bar-gloss"></div>
+              </div>
+            </div>
+            <div class="hud-card">
+              <span data-i18n="ui.score">Score</span>
+              <strong id="scoreValue">0</strong>
+            </div>
+            <div class="hud-card">
+              <span data-i18n="ui.wave">Wave</span>
+              <strong id="waveValue">1</strong>
+            </div>
+            <div class="hud-card">
+              <span data-i18n="ui.combo">Combo</span>
+              <strong id="comboValue">x1</strong>
+            </div>
+            <div class="hud-card">
+              <span data-i18n="ui.weapon">Weapon</span>
+              <strong id="weaponValue">Pistol</strong>
+            </div>
+          </div>
+
+          <div class="hud-secondary">
+            <div id="boostsBar" class="boosts-bar" aria-live="polite"></div>
+            <div id="waveBonusBadge" class="wave-bonus-badge hidden" aria-live="polite"></div>
+            <div id="synergyPanel" class="synergy-panel" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div id="waveClearOverlay" class="cinematic-overlay wave-clear-overlay" aria-live="polite">
+          <div class="cinematic-card">
+            <p class="cinematic-kicker" data-i18n="waveClear.kicker">Wave Clear</p>
+            <h2 data-i18n="waveClear.title">WAVE CLEARED</h2>
+            <p data-i18n="waveClear.subtitle">Get ready for the next push</p>
+          </div>
+        </div>
+
+        <div id="perkOverlay" class="perk-overlay" aria-live="polite">
+          <div class="perk-panel">
+            <p class="overlay-tag" data-i18n="perk.tag">Augment Synthesis</p>
+            <h2 data-i18n="perk.title">Wave Cleared</h2>
+            <p class="perk-subtitle" data-i18n="perk.subtitle">Choose an augment for the next wave</p>
+            <p id="perkHint" class="perk-hint">Stack bonuses in the same direction to unlock synergies.</p>
+            <div id="perkSynergyPanel" class="perk-synergy-panel hidden" aria-live="polite"></div>
+            <div id="perkChoices" class="perk-choices"></div>
+          </div>
+        </div>
+
+        <div id="deathSequenceOverlay" class="cinematic-overlay death-sequence-overlay" aria-live="assertive">
+          <div class="death-sequence-card">
+            <p class="death-sequence-kicker" data-i18n="death.kicker">Combat Failure</p>
+            <h2 data-i18n="death.title">YOU ARE DEAD</h2>
+            <p class="death-sequence-subtitle" data-i18n="death.prompt">Click to see the results</p>
+          </div>
+        </div>
+
+        <div id="overlay" class="overlay visible">
+          <div class="overlay-card">
+            <p class="overlay-tag" data-i18n="overlay.tag">Top-down survival shooter</p>
+            <h2 id="overlayTitle">Block in Flames</h2>
+            <p id="overlayText">
+              Hold out as long as you can, fighting wave after wave. Each enemy group has its own attack rhythm, so keep moving and never let them surround you.
+            </p>
+
+            <div id="audioPrompt" class="audio-prompt">
+              <div class="audio-prompt-card" data-i18n="audio.unlock">Click to enable audio</div>
+            </div>
+
+            <div id="runSummaryPanel" class="run-summary-panel hidden">
+              <div class="run-summary-grid">
+                <div><span data-i18n="summary.wave">Wave</span><strong id="runSummaryWave">0</strong></div>
+                <div><span data-i18n="summary.kills">Kills</span><strong id="runSummaryKills">0</strong></div>
+                <div><span data-i18n="summary.score">Score</span><strong id="runSummaryScore">0</strong></div>
+                <div><span data-i18n="summary.creditsEarned">Run credits</span><strong id="runSummaryCreditsEarned">0</strong></div>
+                <div><span data-i18n="summary.creditsTotal">Credit balance</span><strong id="runSummaryCreditsTotal">0</strong></div>
+              </div>
+            </div>
+
+            <div id="scoreEntryPanel" class="score-entry-panel hidden">
+              <label class="score-entry-label" for="playerNameInput" data-i18n="scoreEntry.label">Leaderboard name</label>
+              <div class="score-entry-controls">
+                <input id="playerNameInput" class="score-entry-input" type="text" maxlength="20" placeholder="Player" data-i18n-placeholder="scoreEntry.placeholder">
+                <button id="saveScoreButton" class="action" data-i18n="ui.save">Save</button>
+              </div>
+              <p id="saveScoreStatus" class="score-entry-status"></p>
+            </div>
+
+            <div class="overlay-actions">
+              <button id="overlayButton" class="action action-secondary">To Battle</button>
+              <button id="overlayMetaButton" class="action action-ghost" data-i18n="ui.upgrades">Upgrades</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="metaOverlay" class="meta-overlay" aria-live="polite">
+    <div class="meta-panel">
+      <div class="meta-panel-head">
+        <div>
+          <p class="overlay-tag" data-i18n="meta.tag">Meta Progression</p>
+          <h2 data-i18n="meta.title">Permanent Upgrades</h2>
+        </div>
+        <div class="language-switcher language-switcher-compact" role="group" aria-label="Language">
+          <span data-i18n="language.label">Language</span>
+          <button class="language-button active" type="button" data-language-option="en" aria-pressed="true">EN</button>
+          <button class="language-button" type="button" data-language-option="ru" aria-pressed="false">RU</button>
+        </div>
+        <button id="closeMetaButton" class="action action-ghost" data-i18n="ui.back">Back</button>
+      </div>
+
+      <div class="meta-topline">
+        <div class="meta-credits-card">
+          <span data-i18n="meta.balance">Credit balance</span>
+          <strong id="metaCreditsValue">0</strong>
+        </div>
+        <div class="meta-credits-card meta-credits-card-soft">
+          <span data-i18n="meta.totalEarned">Total earned</span>
+          <strong id="metaEarnedValue">0</strong>
+        </div>
+      </div>
+
+      <div class="meta-layout">
+        <section class="meta-stats-panel">
+          <p class="audio-title" data-i18n="meta.operatorProfile">Operator Profile</p>
+          <div id="metaStatsGrid" class="meta-stats-grid"></div>
+        </section>
+        <section class="meta-upgrades-panel">
+          <p class="audio-title" data-i18n="meta.upgradeLine">Upgrade Line</p>
+          <div id="metaUpgradeList" class="meta-upgrade-list"></div>
+        </section>
+      </div>
+    </div>
+      </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
