@@ -48,37 +48,12 @@
         <strong id="metaTeaserCredits">0</strong>
       </div>
 
-      <div class="audio-panel">
-        <p class="audio-title" data-i18n="ui.audio">Audio</p>
-        <label class="audio-control">
-          <span data-i18n="ui.masterVolume">Master volume</span>
-          <input id="masterVolume" type="range" min="0" max="100" value="70">
-        </label>
-        <label class="audio-control">
-          <span data-i18n="ui.music">Music</span>
-          <input id="musicVolume" type="range" min="0" max="100" value="68">
-        </label>
-        <label class="audio-control">
-          <span data-i18n="ui.sfx">Effects</span>
-          <input id="sfxVolume" type="range" min="0" max="100" value="82">
-        </label>
-      </div>
-
-      <section class="leaderboard-panel">
-        <div class="leaderboard-head">
+      <section class="leaderboard-teaser">
+        <div class="leaderboard-teaser-copy">
           <p class="audio-title" data-i18n="leaderboard.title">Top 100</p>
           <strong id="leaderboardCount">0 entries</strong>
         </div>
-        <div class="leaderboard-table">
-          <div class="leaderboard-row leaderboard-row-head">
-            <span>#</span>
-            <span data-i18n="leaderboard.name">Name</span>
-            <span data-i18n="leaderboard.scoreShort">Score</span>
-            <span data-i18n="leaderboard.killsShort">K</span>
-            <span data-i18n="leaderboard.waveShort">W</span>
-          </div>
-          <div id="leaderboardBody" class="leaderboard-body"></div>
-        </div>
+        <button id="openLeaderboardButton" class="action action-ghost leaderboard-open-button" type="button" data-i18n="leaderboard.open">Top 100</button>
       </section>
 
       <div class="menu-actions">
@@ -89,6 +64,77 @@
 
     <section class="arena-shell">
       <div id="fullscreenRoot" class="fullscreen-root">
+      <div id="mainMenuOverlay" class="main-menu-overlay visible" aria-live="polite">
+        <div class="main-menu-backdrop"></div>
+
+        <div class="main-menu-content" role="dialog" aria-label="Block Zero main menu" data-i18n-aria-label="mainMenu.ariaLabel">
+          <nav class="main-menu-actions" aria-label="Main menu" data-i18n-aria-label="mainMenu.navAria">
+            <button id="mainMenuStartButton" class="main-menu-button main-menu-button-primary" type="button" data-i18n="mainMenu.start">Start Game</button>
+
+            <button id="mainMenuControlsButton" class="main-menu-button" type="button" data-i18n="mainMenu.controls">Controls</button>
+
+            <button id="mainMenuUpgradesButton" class="main-menu-button" type="button" data-i18n="mainMenu.upgrades">Upgrades</button>
+
+            <button id="mainMenuHallButton" class="main-menu-button" type="button" data-i18n="mainMenu.hallOfFame">Hall of Fame</button>
+
+            <button id="mainMenuAudioButton" class="main-menu-button main-menu-button-status" type="button" aria-expanded="false">
+              <span data-i18n="mainMenu.audioSettings">Audio Settings</span>
+              <strong id="mainMenuAudioState" data-i18n="mainMenu.closed">CLOSED</strong>
+            </button>
+
+            <div id="mainMenuAudioPanel" class="main-menu-audio-panel hidden">
+              <label class="audio-control">
+                <span data-i18n="ui.masterVolume">Master volume</span>
+                <input id="masterVolume" type="range" min="0" max="100" value="70">
+              </label>
+              <label class="audio-control">
+                <span data-i18n="ui.music">Music</span>
+                <input id="musicVolume" type="range" min="0" max="100" value="68">
+              </label>
+              <label class="audio-control">
+                <span data-i18n="ui.sfx">Effects</span>
+                <input id="sfxVolume" type="range" min="0" max="100" value="82">
+              </label>
+            </div>
+
+            <div class="main-menu-setting-row" role="group" aria-label="Language" data-i18n-aria-label="mainMenu.language">
+              <span data-i18n="mainMenu.language">Language</span>
+              <div class="main-menu-language-buttons">
+                <button class="main-menu-chip language-button active" type="button" data-language-option="en" aria-pressed="true">EN</button>
+                <button class="main-menu-chip language-button" type="button" data-language-option="ru" aria-pressed="false">RU</button>
+              </div>
+            </div>
+
+            <button id="mainMenuFullscreenButton" class="main-menu-button main-menu-button-status" type="button">
+              <span data-i18n="mainMenu.fullscreen">Fullscreen</span>
+              <strong id="mainMenuFullscreenState" data-i18n="mainMenu.off">OFF</strong>
+            </button>
+
+            <button id="mainMenuExitButton" class="main-menu-button main-menu-button-danger" type="button" data-i18n="mainMenu.exit">Exit</button>
+          </nav>
+        </div>
+      </div>
+
+      <div id="controlsOverlay" class="menu-modal-overlay" aria-live="polite">
+        <div class="menu-modal-panel">
+          <div class="menu-modal-head">
+            <div>
+              <p class="overlay-tag" data-i18n="controls.tag">Operator Manual</p>
+              <h2 data-i18n="controls.title">Controls</h2>
+            </div>
+            <button id="closeControlsButton" class="action action-ghost" type="button" data-i18n="ui.back">Back</button>
+          </div>
+
+          <div class="controls-modal-grid">
+            <div><span data-i18n="controls.move">Move</span><strong data-i18n="controls.moveKeys">WASD / arrows</strong></div>
+            <div><span data-i18n="controls.aim">Aim</span><strong data-i18n="controls.aimKeys">Mouse</strong></div>
+            <div><span data-i18n="controls.fire">Fire</span><strong data-i18n="controls.fireKeys">LMB / space</strong></div>
+            <div><span data-i18n="controls.dash">Dash</span><strong data-i18n="controls.dashKeys">Shift</strong></div>
+            <div><span data-i18n="controls.weaponPickup">Equip weapon</span><strong data-i18n="controls.weaponPickupKeys">Hold E</strong></div>
+          </div>
+        </div>
+      </div>
+
       <div id="gameFrame" class="canvas-frame">
         <canvas id="gameCanvas" width="1120" height="680" aria-label="Game field" data-i18n-aria-label="ui.gameCanvas"></canvas>
 
@@ -148,6 +194,7 @@
             <p class="perk-subtitle" data-i18n="perk.subtitle">Choose an augment for the next wave</p>
             <p id="perkHint" class="perk-hint">Stack bonuses in the same direction to unlock synergies.</p>
             <div id="perkSynergyPanel" class="perk-synergy-panel hidden" aria-live="polite"></div>
+            <div id="perkControls" class="perk-controls"></div>
             <div id="perkChoices" class="perk-choices"></div>
           </div>
         </div>
@@ -160,7 +207,7 @@
           </div>
         </div>
 
-        <div id="overlay" class="overlay visible">
+        <div id="overlay" class="overlay">
           <div class="overlay-card">
             <p class="overlay-tag" data-i18n="overlay.tag">Top-down survival shooter</p>
             <h2 id="overlayTitle">Block in Flames</h2>
@@ -236,6 +283,67 @@
         </section>
       </div>
     </div>
+      </div>
+      <div id="pauseOverlay" class="pause-overlay" aria-live="polite">
+        <div class="pause-card">
+          <p class="overlay-tag" data-i18n="pause.tag">Run Paused</p>
+          <h2 data-i18n="pause.title">PAUSED</h2>
+          <p class="pause-subtitle" data-i18n="pause.subtitle">The sector is frozen. Choose your next move.</p>
+
+          <div class="pause-actions">
+            <button id="resumeRunButton" class="action" type="button" data-i18n="pause.continue">
+              Continue Run
+            </button>
+            <button id="abortRunButton" class="action action-secondary" type="button" data-i18n="pause.abort">
+              Abort Run
+            </button>
+            <button id="pauseMainMenuButton" class="action action-ghost" type="button" data-i18n="pause.mainMenu">
+              Return to Main Menu
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="leaderboardOverlay" class="leaderboard-overlay" aria-live="polite">
+        <div class="leaderboard-full-panel">
+          <div class="leaderboard-full-head">
+            <div>
+              <p class="overlay-tag" data-i18n="leaderboard.tag">Combat Archive</p>
+              <h2 data-i18n="leaderboard.title">Top 100</h2>
+            </div>
+            <button id="closeLeaderboardButton" class="action action-ghost" type="button" data-i18n="ui.back">Back</button>
+          </div>
+
+          <div class="leaderboard-full-topline">
+            <div class="meta-credits-card">
+              <span data-i18n="leaderboard.records">Records</span>
+              <strong id="leaderboardOverlayCount">0</strong>
+            </div>
+            <div class="meta-credits-card meta-credits-card-soft">
+              <span data-i18n="leaderboard.bestScore">Best score</span>
+              <strong id="leaderboardBestScore">0</strong>
+            </div>
+          </div>
+
+          <div class="leaderboard-full-layout">
+            <section class="leaderboard-list-panel">
+              <div class="leaderboard-full-table">
+                <div class="leaderboard-full-row leaderboard-full-row-head">
+                  <span>#</span>
+                  <span data-i18n="leaderboard.name">Name</span>
+                  <span data-i18n="leaderboard.scoreShort">Score</span>
+                  <span data-i18n="leaderboard.killsShort">K</span>
+                  <span data-i18n="leaderboard.waveShort">W</span>
+                  <span data-i18n="leaderboard.date">Date</span>
+                </div>
+                <div id="leaderboardFullBody" class="leaderboard-full-body"></div>
+              </div>
+            </section>
+
+            <aside id="leaderboardDetails" class="leaderboard-details-panel">
+              <p class="leaderboard-details-empty" data-i18n="leaderboard.selectEntry">Select a record to inspect the run.</p>
+            </aside>
+          </div>
+        </div>
       </div>
       </div>
     </section>

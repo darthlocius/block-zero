@@ -20,10 +20,24 @@ import { t } from "./i18n.js";
 
 // Player movement, pickups, and weapon handling.
 
+const WEAPON_INTERACT_RADIUS = 56;
+const WEAPON_EQUIP_HOLD_DURATION = 0.35;
+
+function isWeaponPickup(pickup) {
+  return pickup.type.startsWith("weapon-");
+}
+
+function resetWeaponPickupHold() {
+  world.weaponPickupTarget = null;
+  world.weaponPickupHoldTime = 0;
+  world.weaponPickupHoldProgress = 0;
+}
+
 function applyPickup(pickup) {
   if (pickup.type.startsWith("weapon-")) {
     player.weapon = pickup.type.replace("weapon-", "");
     banner(currentWeapon().label.toUpperCase(), t("banner.weaponPickup.subtitle"), 1.3, "#86f7ff");
+    syncHud();
   } else if (pickup.type === "med") {
     player.health = Math.min(player.maxHealth, player.health + 32 * getMetaHealingMultiplier());
     banner(t("banner.medkit.title"), t("banner.medkit.subtitle"), 1.2, "#7cff93");
@@ -62,15 +76,58 @@ function updatePlayer(dt, canShoot) {
 }
 
 function updatePickups(dt) {
+  let nearestWeaponPickup = null;
+  let nearestWeaponDistance = Infinity;
+
   world.pickups = world.pickups.filter((pickup) => {
     pickup.life -= dt;
     pickup.pulse += dt * (pickup.type.startsWith("weapon-") ? 2.4 : 3.5);
+
+    if (isWeaponPickup(pickup)) {
+      if (pickup.life <= 0) return false;
+      const distance = dist(pickup, player);
+      if (distance <= WEAPON_INTERACT_RADIUS && distance < nearestWeaponDistance) {
+        nearestWeaponPickup = pickup;
+        nearestWeaponDistance = distance;
+      }
+      return true;
+    }
+
     if (dist(pickup, player) <= pickup.radius + player.radius) {
       applyPickup(pickup);
       return false;
     }
     return pickup.life > 0;
   });
+
+  world.weaponPickupPromptTarget = nearestWeaponPickup;
+
+  if (!nearestWeaponPickup) {
+    resetWeaponPickupHold();
+    return;
+  }
+
+  if (world.weaponPickupTarget !== nearestWeaponPickup) {
+    world.weaponPickupTarget = nearestWeaponPickup;
+    world.weaponPickupHoldTime = 0;
+    world.weaponPickupHoldProgress = 0;
+  }
+
+  if (!world.keys.has("interact")) {
+    world.weaponPickupHoldTime = 0;
+    world.weaponPickupHoldProgress = 0;
+    return;
+  }
+
+  world.weaponPickupHoldTime += dt;
+  world.weaponPickupHoldProgress = Math.min(1, world.weaponPickupHoldTime / WEAPON_EQUIP_HOLD_DURATION);
+
+  if (world.weaponPickupHoldTime >= WEAPON_EQUIP_HOLD_DURATION) {
+    applyPickup(nearestWeaponPickup);
+    world.pickups = world.pickups.filter((pickup) => pickup !== nearestWeaponPickup);
+    world.weaponPickupPromptTarget = null;
+    resetWeaponPickupHold();
+  }
 }
 
 export {

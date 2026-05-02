@@ -27,6 +27,11 @@ import { t, updateStaticTranslations } from "./i18n.js";
 // Main loop bootstrap that composes the gameplay modules.
 
 function update(dt) {
+  if (world.state === "paused") {
+    syncHud();
+    return;
+  }
+
   if (world.state === "menu" || world.state === "gameover") {
     updateTimers(dt);
     syncHud();

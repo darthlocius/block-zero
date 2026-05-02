@@ -1,12 +1,25 @@
 ﻿// Shared game state, assets, UI helpers, and reusable systems.
 
-import { addLanguageChangeListener, t } from "./i18n.js";
+import { addLanguageChangeListener, getLanguage, t } from "./i18n.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const fullscreenRoot = document.getElementById("fullscreenRoot");
 const gameFrame = document.getElementById("gameFrame");
 const fullscreenButton = document.getElementById("fullscreenButton");
+const mainMenuOverlay = document.getElementById("mainMenuOverlay");
+const mainMenuStartButton = document.getElementById("mainMenuStartButton");
+const mainMenuControlsButton = document.getElementById("mainMenuControlsButton");
+const mainMenuUpgradesButton = document.getElementById("mainMenuUpgradesButton");
+const mainMenuHallButton = document.getElementById("mainMenuHallButton");
+const mainMenuFullscreenButton = document.getElementById("mainMenuFullscreenButton");
+const mainMenuFullscreenState = document.getElementById("mainMenuFullscreenState");
+const mainMenuAudioButton = document.getElementById("mainMenuAudioButton");
+const mainMenuAudioPanel = document.getElementById("mainMenuAudioPanel");
+const mainMenuAudioState = document.getElementById("mainMenuAudioState");
+const mainMenuExitButton = document.getElementById("mainMenuExitButton");
+const controlsOverlay = document.getElementById("controlsOverlay");
+const closeControlsButton = document.getElementById("closeControlsButton");
 
 const healthValue = document.getElementById("healthValue");
 const healthBar = document.getElementById("healthBar");
@@ -21,6 +34,13 @@ const waveBonusBadge = document.getElementById("waveBonusBadge");
 const synergyPanel = document.getElementById("synergyPanel");
 const leaderboardCount = document.getElementById("leaderboardCount");
 const leaderboardBody = document.getElementById("leaderboardBody");
+const openLeaderboardButton = document.getElementById("openLeaderboardButton");
+const closeLeaderboardButton = document.getElementById("closeLeaderboardButton");
+const leaderboardOverlay = document.getElementById("leaderboardOverlay");
+const leaderboardOverlayCount = document.getElementById("leaderboardOverlayCount");
+const leaderboardBestScore = document.getElementById("leaderboardBestScore");
+const leaderboardFullBody = document.getElementById("leaderboardFullBody");
+const leaderboardDetails = document.getElementById("leaderboardDetails");
 const startButton = document.getElementById("startButton");
 const menuMetaButton = document.getElementById("menuMetaButton");
 const overlay = document.getElementById("overlay");
@@ -33,6 +53,7 @@ const waveClearOverlay = document.getElementById("waveClearOverlay");
 const perkOverlay = document.getElementById("perkOverlay");
 const perkHint = document.getElementById("perkHint");
 const perkSynergyPanel = document.getElementById("perkSynergyPanel");
+const perkControls = document.getElementById("perkControls");
 const perkChoices = document.getElementById("perkChoices");
 const deathSequenceOverlay = document.getElementById("deathSequenceOverlay");
 const metaOverlay = document.getElementById("metaOverlay");
@@ -52,6 +73,10 @@ const scoreEntryPanel = document.getElementById("scoreEntryPanel");
 const playerNameInput = document.getElementById("playerNameInput");
 const saveScoreButton = document.getElementById("saveScoreButton");
 const saveScoreStatus = document.getElementById("saveScoreStatus");
+const pauseOverlay = document.getElementById("pauseOverlay");
+const resumeRunButton = document.getElementById("resumeRunButton");
+const abortRunButton = document.getElementById("abortRunButton");
+const pauseMainMenuButton = document.getElementById("pauseMainMenuButton");
 const masterVolume = document.getElementById("masterVolume");
 const musicVolume = document.getElementById("musicVolume");
 const sfxVolume = document.getElementById("sfxVolume");
@@ -150,6 +175,11 @@ const assetManifest = {
     battle_music: "assets/audio/battle_music.mp3",
     battle_music_02: "assets/audio/battle_music_02.mp3",
     battle_music_03: "assets/audio/battle_music_03.mp3",
+    battle_music_04: "assets/audio/battle_music_04.mp3",
+    battle_music_05: "assets/audio/battle_music_05.mp3",
+    battle_music_06: "assets/audio/battle_music_06.mp3",
+    battle_music_07: "assets/audio/battle_music_07.mp3",
+    battle_music_08: "assets/audio/battle_music_08.mp3",
     gun_pistol: "assets/audio/pistol-fire.mp3",
     gun_shotgun: "assets/audio/shotgun-fire.mp3",
     gun_smg: "assets/audio/smg-fire.mp3",
@@ -158,7 +188,16 @@ const assetManifest = {
   },
 };
 
-const battleTrackKeys = ["battle_music", "battle_music_02", "battle_music_03"];
+const battleTrackKeys = [
+  "battle_music",
+  "battle_music_02",
+  "battle_music_03",
+  "battle_music_04",
+  "battle_music_05",
+  "battle_music_06",
+  "battle_music_07",
+  "battle_music_08",
+];
 
 const playerSpritesheetMeta = {
   frameWidth: 64,
@@ -329,6 +368,30 @@ const metaUpgrades = {
     baseCost: 30,
     costScale: 22,
   },
+  reroll_protocol: {
+    id: "reroll_protocol",
+    title: "Reroll Protocol",
+    description: "Grants +1 augment reroll per level during each run.",
+    maxLevel: 3,
+    baseCost: 450,
+    costScale: 240,
+  },
+  expanded_selection: {
+    id: "expanded_selection",
+    title: "Expanded Selection",
+    description: "Adds a fourth augment option between waves.",
+    maxLevel: 1,
+    baseCost: 1900,
+    costScale: 0,
+  },
+  synergy_scanner: {
+    id: "synergy_scanner",
+    title: "Synergy Scanner",
+    description: "Shows which augment choices can lead toward synergies.",
+    maxLevel: 1,
+    baseCost: 1400,
+    costScale: 0,
+  },
 };
 
 function createDefaultMetaState() {
@@ -353,6 +416,8 @@ const world = {
   canvasUiScale: 1,
   waveBannerScale: 1,
   state: "menu",
+  stateBeforePause: null,
+  pauseOpenedAt: 0,
   lastTime: 0,
   screenShake: 0,
   shakeX: 0,
@@ -367,6 +432,10 @@ const world = {
   foes: [],
   particles: [],
   pickups: [],
+  weaponPickupPromptTarget: null,
+  weaponPickupTarget: null,
+  weaponPickupHoldTime: 0,
+  weaponPickupHoldProgress: 0,
   destructibles: [],
   decals: [],
   deathEffects: [],
@@ -391,6 +460,8 @@ const world = {
   buffs: { rapid: 0, speed: 0, armor: 0, drone: 0 },
   activeWaveBonus: null,
   pendingWaveBonuses: [],
+  perkRerollsLeft: 0,
+  perkRerollCapacity: 0,
   waveBonusExpiresOnWave: 0,
   acquiredRunBonuses: [],
   buildTagsCounter: {},
@@ -406,7 +477,9 @@ const world = {
   droneBeamSoundCooldown: 0,
   radar: { range: 260, ping: 0 },
   leaderboard: [],
+  selectedLeaderboardIndex: 0,
   pendingLeaderboardEntry: null,
+  resultOverlayKind: null,
   deathSequenceTimer: 0,
   deathSequenceReadyForClick: false,
   deathOverlayAlpha: 0,
@@ -903,6 +976,7 @@ const synergies = {
     id: "bullet_storm",
     title: "Пулевой шторм",
     description: "Поток огня усиливается. Периодически появляется дополнительный выстрел.",
+    hintTags: ["rapidfire", "offense", "weapon_pistol", "weapon_smg"],
     condition(tags) {
       return (tags.rapidfire || 0) >= 1 && (tags.offense || 0) >= 2;
     },
@@ -911,6 +985,7 @@ const synergies = {
     id: "shock_corridor",
     title: "Шоковый коридор",
     description: "Плазма пробивает цели и вызывает цепные разряды.",
+    hintTags: ["weapon_plasma", "pierce", "offense"],
     condition(tags) {
       return (tags.weapon_plasma || 0) >= 1 && (tags.pierce || 0) >= 1 && (tags.offense || 0) >= 1;
     },
@@ -919,6 +994,7 @@ const synergies = {
     id: "crowd_control",
     title: "Контроль толпы",
     description: "Дробовик сильнее замедляет и отбрасывает врагов.",
+    hintTags: ["control", "weapon_shotgun"],
     condition(tags) {
       return (tags.control || 0) >= 1 && (tags.weapon_shotgun || 0) >= 1;
     },
@@ -927,6 +1003,7 @@ const synergies = {
     id: "scavenger_loop",
     title: "Цикл падальщика",
     description: "Убийства чаще дают ресурсы и шанс восстановления.",
+    hintTags: ["utility", "sustain"],
     condition(tags) {
       return (tags.utility || 0) >= 1 && (tags.sustain || 0) >= 1;
     },
@@ -935,6 +1012,7 @@ const synergies = {
     id: "hunter_swarm",
     title: "Рой охотников",
     description: "Дроны усиливаются и стреляют чаще.",
+    hintTags: ["drone", "offense"],
     condition(tags) {
       return (tags.drone || 0) >= 1 && (tags.offense || 0) >= 1;
     },
@@ -1022,6 +1100,38 @@ function buildPerkHintText() {
     : t("perk.hint.default");
 }
 
+function simulateTagsWithBonus(bonus) {
+  const tags = { ...world.buildTagsCounter };
+  for (const tag of bonus?.tags || []) {
+    tags[tag] = (tags[tag] || 0) + 1;
+  }
+  return tags;
+}
+
+function getBonusSynergyHints(bonus) {
+  if (!hasSynergyScanner()) return [];
+
+  const bonusTags = bonus?.tags || [];
+  const simulatedTags = simulateTagsWithBonus(bonus);
+
+  return Object.values(synergies)
+    .filter((synergy) => !world.activeSynergies.includes(synergy.id))
+    .map((synergy) => {
+      const activates = synergy.condition(simulatedTags, [...world.acquiredRunBonuses, bonus.id]);
+      const contributes = (synergy.hintTags || []).some((tag) => bonusTags.includes(tag));
+
+      if (!activates && !contributes) return null;
+
+      return {
+        id: synergy.id,
+        title: synergyTitle(synergy),
+        activates,
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 2);
+}
+
 function showSynergyToast(synergyId) {
   const synergy = synergies[synergyId];
   if (!synergy) return;
@@ -1073,13 +1183,14 @@ function registerRunBonusSelection(bonus) {
 }
 
 function buildWaveBonusChoices() {
+  const targetCount = getWaveBonusChoiceCount();
   const all = Object.values(waveBonuses);
   let pool = all.filter((bonus) => !bonus.isAvailable || bonus.isAvailable());
-  if (pool.length < 3) pool = all;
+  if (!pool.length) pool = all;
   const picks = [];
   const available = [...pool];
   const perkBias = getMetaPerkBiasFactor();
-  while (available.length && picks.length < 3) {
+  while (available.length && picks.length < targetCount) {
     const totalWeight = available.reduce((sum, bonus) => {
       const rarityBias = bonus.rarity === "legendary" ? perkBias * 1.25 : bonus.rarity === "epic" ? perkBias * 1.12 : bonus.rarity === "rare" ? perkBias * 1.05 : 1;
       const buildBias = getWaveBonusBuildBias(bonus);
@@ -1103,20 +1214,58 @@ function buildWaveBonusChoices() {
   return picks;
 }
 
+function renderPerkControls() {
+  if (!perkControls) return;
+
+  const capacity = world.perkRerollCapacity || 0;
+
+  if (capacity <= 0) {
+    perkControls.classList.add("hidden");
+    perkControls.innerHTML = "";
+    return;
+  }
+
+  const left = Math.max(0, world.perkRerollsLeft || 0);
+  const disabled = left <= 0;
+
+  perkControls.classList.remove("hidden");
+  perkControls.innerHTML = `
+    <div class="perk-controls-inner">
+      <span class="perk-reroll-counter">${escapeHtml(t("perk.rerollsLeft", { count: left }))}</span>
+      <button class="perk-reroll-button" type="button" data-perk-reroll ${disabled ? "disabled" : ""}>
+        ${escapeHtml(t("perk.reroll"))}
+      </button>
+    </div>
+  `;
+}
+
 function renderWaveBonusSelection() {
   if (!perkChoices) return;
   if (perkHint) perkHint.textContent = buildPerkHintText();
-  perkChoices.innerHTML = world.pendingWaveBonuses.map((bonus, index) => (
-    `<button class="perk-card rarity-${bonus.rarity}" type="button" data-bonus-id="${bonus.id}" style="--perk-accent:${bonus.color};--perk-border:${bonus.borderColor};--perk-glow:${bonus.glowColor};--perk-delay:${index * 80}ms">`
-    + `<div class="perk-card-head">`
-    + `<span class="perk-card-tag">${escapeHtml(t("perk.nextWave"))}</span>`
-    + `<span class="perk-rarity-badge">${escapeHtml(bonusRarityLabel(bonus))}</span>`
-    + `</div>`
-    + `<strong>${escapeHtml(bonusTitle(bonus))}</strong>`
-    + `<span>${escapeHtml(bonusDescription(bonus))}</span>`
-    + `<div class="perk-tag-row">${(bonus.tags || []).slice(0, 4).map((tag) => `<span class="perk-build-tag">${escapeHtml(labelForBuildTag(tag))}</span>`).join("")}</div>`
-    + "</button>"
-  )).join("");
+  perkChoices.classList.toggle("has-four", world.pendingWaveBonuses.length >= 4);
+  renderPerkControls();
+  perkChoices.innerHTML = world.pendingWaveBonuses.map((bonus, index) => {
+    const synergyHints = getBonusSynergyHints(bonus);
+    const synergyHint = synergyHints.length
+      ? `<div class="perk-synergy-hint">${escapeHtml(t(
+        synergyHints.some((hint) => hint.activates) ? "perk.synergyHintActivates" : "perk.synergyHint",
+        { names: synergyHints.map((hint) => hint.title).join(", ") },
+      ))}</div>`
+      : "";
+
+    return (
+      `<button class="perk-card rarity-${bonus.rarity}" type="button" data-bonus-id="${bonus.id}" style="--perk-accent:${bonus.color};--perk-border:${bonus.borderColor};--perk-glow:${bonus.glowColor};--perk-delay:${index * 80}ms">`
+      + `<div class="perk-card-head">`
+      + `<span class="perk-card-tag">${escapeHtml(t("perk.nextWave"))}</span>`
+      + `<span class="perk-rarity-badge">${escapeHtml(bonusRarityLabel(bonus))}</span>`
+      + `</div>`
+      + `<strong>${escapeHtml(bonusTitle(bonus))}</strong>`
+      + `<span>${escapeHtml(bonusDescription(bonus))}</span>`
+      + `<div class="perk-tag-row">${(bonus.tags || []).slice(0, 4).map((tag) => `<span class="perk-build-tag">${escapeHtml(labelForBuildTag(tag))}</span>`).join("")}</div>`
+      + synergyHint
+      + "</button>"
+    );
+  }).join("");
   renderPerkSynergies();
 }
 
@@ -1157,7 +1306,14 @@ function togglePerkSynergyDescription(id) {
 
 function closeWaveBonusSelection() {
   if (perkOverlay) perkOverlay.classList.remove("visible");
-  if (perkChoices) perkChoices.innerHTML = "";
+  if (perkChoices) {
+    perkChoices.classList.remove("has-four");
+    perkChoices.innerHTML = "";
+  }
+  if (perkControls) {
+    perkControls.classList.add("hidden");
+    perkControls.innerHTML = "";
+  }
   if (perkSynergyPanel) {
     perkSynergyPanel.classList.add("hidden");
     perkSynergyPanel.innerHTML = "";
@@ -1165,6 +1321,17 @@ function closeWaveBonusSelection() {
   if (perkHint) perkHint.textContent = t("perk.hint.default");
   world.expandedPerkSynergyId = null;
   world.pendingWaveBonuses = [];
+}
+
+function rerollWaveBonusChoices() {
+  if (world.state !== "perk_select") return false;
+  if ((world.perkRerollsLeft || 0) <= 0) return false;
+
+  world.perkRerollsLeft -= 1;
+  world.expandedPerkSynergyId = null;
+  world.pendingWaveBonuses = buildWaveBonusChoices();
+  renderWaveBonusSelection();
+  return true;
 }
 
 function showWaveClearOverlay() {
@@ -1279,6 +1446,7 @@ function updateDeathSequence(dt) {
 function confirmDeathSequence() {
   if (world.state !== "death_sequence" || !world.deathSequenceReadyForClick) return;
   world.state = "gameover";
+  world.resultOverlayKind = "gameover";
   hideDeathSequenceOverlay();
   overlayTitle.textContent = t("overlay.title.gameover");
   overlayText.textContent = t("overlay.text.gameover", {
@@ -1295,6 +1463,8 @@ function confirmDeathSequence() {
     wave: world.wave,
     creditsEarned: world.runCreditsEarned,
     creditsTotal: metaState.credits,
+    weapon: player.weapon,
+    synergies: [...world.activeSynergies],
   });
   overlay.classList.add("visible");
   renderMetaUpgrades();
@@ -2590,12 +2760,191 @@ function renderMetaUpgrades() {
 
 function openMetaOverlay() {
   if (!["menu", "gameover"].includes(world.state)) return;
+  closeLeaderboardOverlay();
+  closeControlsOverlay();
   if (metaOverlay) metaOverlay.classList.add("visible");
   renderMetaUpgrades();
 }
 
 function closeMetaOverlay() {
   if (metaOverlay) metaOverlay.classList.remove("visible");
+}
+
+function isActiveRunState(state = world.state) {
+  return ["playing", "intermission", "wave_clear", "perk_select"].includes(state);
+}
+
+function isPauseAllowed() {
+  return isActiveRunState(world.state);
+}
+
+function openPauseMenu() {
+  if (!isPauseAllowed()) return;
+  world.stateBeforePause = world.state;
+  world.pauseOpenedAt = performance.now();
+  world.state = "paused";
+  world.pointer.down = false;
+  pauseOverlay?.classList.add("visible");
+}
+
+function closePauseMenu() {
+  pauseOverlay?.classList.remove("visible");
+
+  if (world.state === "paused") {
+    world.state = world.stateBeforePause || "playing";
+  }
+
+  world.stateBeforePause = null;
+}
+
+function forceClosePauseMenu() {
+  pauseOverlay?.classList.remove("visible");
+  if (world.state === "paused") {
+    world.state = world.stateBeforePause || "menu";
+  }
+  world.stateBeforePause = null;
+}
+
+function abortRunToSummary() {
+  if (world.state !== "paused" && !isActiveRunState(world.state)) return;
+
+  forceClosePauseMenu();
+
+  finalizeRunMetaProgress();
+
+  world.state = "gameover";
+  world.resultOverlayKind = "aborted";
+  world.pointer.down = false;
+  world.enemyShots = [];
+  world.bullets = [];
+  world.banner = null;
+
+  audio.setMode("menu");
+  closeWaveBonusSelection();
+  hideWaveClearOverlay();
+  hideDeathSequenceOverlay();
+  closeMetaOverlay();
+
+  overlayTitle.textContent = t("overlay.title.aborted");
+  overlayText.textContent = t("overlay.text.aborted", {
+    score: world.score,
+    wave: world.wave,
+    kills: world.kills,
+    credits: world.runCreditsEarned,
+  });
+
+  overlayButton.textContent = t("ui.tryAgain");
+  if (overlayMetaButton) overlayMetaButton.classList.remove("hidden");
+
+  showScoreEntry({
+    score: world.score,
+    kills: world.kills,
+    wave: world.wave,
+    creditsEarned: world.runCreditsEarned,
+    creditsTotal: metaState.credits,
+    weapon: player.weapon,
+    synergies: [...world.activeSynergies],
+  });
+
+  overlay.classList.add("visible");
+  renderMetaUpgrades();
+}
+
+function returnToMainMenuFromRun() {
+  if (world.state === "paused" || isActiveRunState(world.state)) {
+    finalizeRunMetaProgress();
+  }
+
+  forceClosePauseMenu();
+
+  world.pointer.down = false;
+  world.enemyShots = [];
+  world.bullets = [];
+  world.banner = null;
+
+  closeWaveBonusSelection();
+  hideWaveClearOverlay();
+  hideDeathSequenceOverlay();
+  hideScoreEntry();
+  closeMetaOverlay();
+
+  overlay.classList.remove("visible");
+
+  audio.setMode("menu");
+  showMainMenu();
+  renderMetaUpgrades();
+}
+
+function returnToMainMenuFromResults() {
+  if (world.state !== "gameover") return;
+
+  hideScoreEntry();
+  closeMetaOverlay();
+  overlay.classList.remove("visible");
+  world.pointer.down = false;
+  world.resultOverlayKind = null;
+  audio.setMode("menu");
+  showMainMenu();
+  renderMetaUpgrades();
+}
+
+function toggleMainMenuAudioSettings() {
+  if (!mainMenuAudioPanel || !mainMenuAudioButton) return;
+
+  const isOpen = !mainMenuAudioPanel.classList.contains("hidden");
+
+  mainMenuAudioPanel.classList.toggle("hidden", isOpen);
+  mainMenuAudioButton.setAttribute("aria-expanded", String(!isOpen));
+
+  if (mainMenuAudioState) {
+    mainMenuAudioState.textContent = !isOpen ? t("mainMenu.open") : t("mainMenu.closed");
+  }
+}
+
+function syncMainMenuAudioState() {
+  if (!mainMenuAudioPanel || !mainMenuAudioState) return;
+  const isOpen = !mainMenuAudioPanel.classList.contains("hidden");
+  mainMenuAudioState.textContent = isOpen ? t("mainMenu.open") : t("mainMenu.closed");
+}
+
+function showMainMenu() {
+  world.state = "menu";
+  forceClosePauseMenu();
+  world.resultOverlayKind = null;
+  mainMenuOverlay?.classList.add("visible");
+  document.body.classList.add("has-main-menu");
+  audio.setMode("menu");
+  closeMetaOverlay();
+  closeLeaderboardOverlay();
+  closeControlsOverlay();
+  closeWaveBonusSelection();
+  hideWaveClearOverlay();
+  hideDeathSequenceOverlay();
+  if (overlay) overlay.classList.remove("visible");
+}
+
+function hideMainMenu() {
+  mainMenuOverlay?.classList.remove("visible");
+  document.body.classList.remove("has-main-menu");
+}
+
+function openControlsOverlay() {
+  closeMetaOverlay();
+  closeLeaderboardOverlay();
+  controlsOverlay?.classList.add("visible");
+}
+
+function closeControlsOverlay() {
+  controlsOverlay?.classList.remove("visible");
+}
+
+function exitToProjectPage() {
+  const url = "https://darthlocius.itch.io/block-zero";
+  try {
+    window.open(url, "_top");
+  } catch {
+    window.location.href = url;
+  }
 }
 
 function buyMetaUpgrade(id) {
@@ -2619,6 +2968,10 @@ function getMetaWeaponDamageMultiplier() { return 1 + getMetaUpgradeLevel("weapo
 function getMetaExecutionBonusMultiplier() { return 1 + getMetaUpgradeLevel("crit_protocol") * 0.05; }
 function getMetaHealingMultiplier() { return 1 + getMetaUpgradeLevel("recovery") * 0.1; }
 function getMetaPerkBiasFactor() { return 1 + getMetaUpgradeLevel("perk_bias") * 0.08; }
+function getMetaRerollCapacity() { return getMetaUpgradeLevel("reroll_protocol"); }
+function hasExpandedSelection() { return getMetaUpgradeLevel("expanded_selection") > 0; }
+function hasSynergyScanner() { return getMetaUpgradeLevel("synergy_scanner") > 0; }
+function getWaveBonusChoiceCount() { return hasExpandedSelection() ? 4 : 3; }
 
 function calculateRunCredits() {
   const waveCredits = world.wave * 12;
@@ -2689,6 +3042,23 @@ function moveSpeed() {
     * world.waveBonusModifiers.moveSpeedMul;
 }
 
+function formatLeaderboardDate(timestamp) {
+  const value = Number(timestamp) || 0;
+  if (!value) return t("leaderboard.unknown");
+
+  try {
+    return new Intl.DateTimeFormat(getLanguage() === "ru" ? "ru-RU" : "en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  } catch {
+    return t("leaderboard.unknown");
+  }
+}
+
 function sortLeaderboard(entries) {
   return [...entries].sort((a, b) => (
     b.score - a.score
@@ -2710,6 +3080,10 @@ function loadLeaderboard() {
         score: Number(entry.score) || 0,
         kills: Number(entry.kills) || 0,
         wave: Number(entry.wave) || 0,
+        creditsEarned: Number(entry.creditsEarned) || 0,
+        creditsTotal: Number(entry.creditsTotal) || 0,
+        weapon: typeof entry.weapon === "string" ? entry.weapon : "",
+        synergies: Array.isArray(entry.synergies) ? entry.synergies.filter((id) => typeof id === "string") : [],
         timestamp: Number(entry.timestamp) || 0,
       })));
   } catch {
@@ -2719,27 +3093,117 @@ function loadLeaderboard() {
 
 function saveLeaderboard(entries) {
   world.leaderboard = sortLeaderboard(entries);
+  if (world.selectedLeaderboardIndex >= world.leaderboard.length) {
+    world.selectedLeaderboardIndex = Math.max(0, world.leaderboard.length - 1);
+  }
   localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(world.leaderboard));
   renderLeaderboard();
 }
 
-function renderLeaderboard() {
-  const countKey = world.leaderboard.length === 1 ? "leaderboard.countOne" : "leaderboard.count";
-  leaderboardCount.textContent = t(countKey, { count: world.leaderboard.length });
-  if (world.leaderboard.length === 0) {
-    leaderboardBody.innerHTML = `<div class="leaderboard-empty">${escapeHtml(t("leaderboard.empty"))}</div>`;
+function renderLeaderboardDetails(entry, index) {
+  if (!leaderboardDetails) return;
+
+  if (!entry) {
+    leaderboardDetails.innerHTML = `<p class="leaderboard-details-empty">${escapeHtml(t("leaderboard.selectEntry"))}</p>`;
     return;
   }
 
-  leaderboardBody.innerHTML = world.leaderboard.map((entry, index) => (
-    `<div class="leaderboard-row">`
-    + `<span>${index + 1}</span>`
-    + `<span class="leaderboard-name">${escapeHtml(displayLeaderboardName(entry.name))}</span>`
-    + `<span>${entry.score}</span>`
-    + `<span>${entry.kills}</span>`
-    + `<span>${entry.wave}</span>`
-    + `</div>`
-  )).join("");
+  const rank = index + 1;
+  const name = displayLeaderboardName(entry.name);
+  const date = formatLeaderboardDate(entry.timestamp);
+  const weapon = entry.weapon ? weaponLabel(entry.weapon) : t("leaderboard.unknown");
+  const creditsEarned = Number(entry.creditsEarned) || 0;
+  const synergyNames = Array.isArray(entry.synergies) && entry.synergies.length
+    ? entry.synergies.map((id) => synergyTitle(id)).join(", ")
+    : t("leaderboard.none");
+
+  leaderboardDetails.innerHTML = `
+    <div class="leaderboard-detail-card">
+      <span>${escapeHtml(t("leaderboard.rank"))}</span>
+      <strong>#${rank}</strong>
+    </div>
+    <div class="leaderboard-detail-main">
+      <h3>${escapeHtml(name)}</h3>
+      <p>${escapeHtml(t("leaderboard.recordedAt", { date }))}</p>
+    </div>
+    <div class="leaderboard-detail-grid">
+      <div><span>${escapeHtml(t("summary.score"))}</span><strong>${entry.score}</strong></div>
+      <div><span>${escapeHtml(t("summary.wave"))}</span><strong>${entry.wave}</strong></div>
+      <div><span>${escapeHtml(t("summary.kills"))}</span><strong>${entry.kills}</strong></div>
+      <div><span>${escapeHtml(t("summary.creditsEarned"))}</span><strong>${creditsEarned}</strong></div>
+      <div><span>${escapeHtml(t("ui.weapon"))}</span><strong>${escapeHtml(weapon)}</strong></div>
+      <div><span>${escapeHtml(t("leaderboard.synergies"))}</span><strong>${escapeHtml(synergyNames)}</strong></div>
+    </div>
+  `;
+}
+
+function renderLeaderboard() {
+  const entries = world.leaderboard || [];
+  const countKey = entries.length === 1 ? "leaderboard.countOne" : "leaderboard.count";
+
+  if (leaderboardCount) {
+    leaderboardCount.textContent = t(countKey, { count: entries.length });
+  }
+
+  if (leaderboardOverlayCount) {
+    leaderboardOverlayCount.textContent = entries.length;
+  }
+
+  if (leaderboardBestScore) {
+    leaderboardBestScore.textContent = entries[0]?.score || 0;
+  }
+
+  if (!leaderboardFullBody) return;
+
+  if (entries.length === 0) {
+    leaderboardFullBody.innerHTML = `<div class="leaderboard-empty">${escapeHtml(t("leaderboard.empty"))}</div>`;
+    renderLeaderboardDetails(null, -1);
+    return;
+  }
+
+  if (
+    typeof world.selectedLeaderboardIndex !== "number"
+    || world.selectedLeaderboardIndex < 0
+    || world.selectedLeaderboardIndex >= entries.length
+  ) {
+    world.selectedLeaderboardIndex = 0;
+  }
+
+  leaderboardFullBody.innerHTML = entries.map((entry, index) => {
+    const selected = world.selectedLeaderboardIndex === index;
+    return (
+      `<button class="leaderboard-full-row leaderboard-full-entry${selected ? " selected" : ""}" type="button" data-leaderboard-index="${index}">`
+      + `<span>${index + 1}</span>`
+      + `<span class="leaderboard-name">${escapeHtml(displayLeaderboardName(entry.name))}</span>`
+      + `<span>${entry.score}</span>`
+      + `<span>${entry.kills}</span>`
+      + `<span>${entry.wave}</span>`
+      + `<span>${escapeHtml(formatLeaderboardDate(entry.timestamp))}</span>`
+      + `</button>`
+    );
+  }).join("");
+
+  renderLeaderboardDetails(entries[world.selectedLeaderboardIndex], world.selectedLeaderboardIndex);
+}
+
+function selectLeaderboardEntry(index) {
+  const numericIndex = Number(index);
+  if (!Number.isFinite(numericIndex)) return;
+  if (numericIndex < 0 || numericIndex >= world.leaderboard.length) return;
+
+  world.selectedLeaderboardIndex = numericIndex;
+  renderLeaderboard();
+}
+
+function openLeaderboardOverlay() {
+  closeControlsOverlay();
+  closeMetaOverlay();
+  renderLeaderboard();
+  leaderboardOverlay?.classList.add("visible");
+}
+
+function closeLeaderboardOverlay() {
+  leaderboardOverlay?.classList.remove("visible");
 }
 
 function showScoreEntry(entry) {
@@ -2888,6 +3352,7 @@ function syncBuffs() {
 
 function refreshLocalizedUi() {
   syncHud();
+  syncMainMenuAudioState();
   renderLeaderboard();
   renderMetaUpgrades();
   if (world.state === "menu") {
@@ -2895,8 +3360,9 @@ function refreshLocalizedUi() {
     overlayText.textContent = t("overlay.text.menu");
     overlayButton.textContent = t("ui.toBattle");
   } else if (world.state === "gameover") {
-    overlayTitle.textContent = t("overlay.title.gameover");
-    overlayText.textContent = t("overlay.text.gameover", {
+    const aborted = world.resultOverlayKind === "aborted";
+    overlayTitle.textContent = t(aborted ? "overlay.title.aborted" : "overlay.title.gameover");
+    overlayText.textContent = t(aborted ? "overlay.text.aborted" : "overlay.text.gameover", {
       score: world.score,
       wave: world.wave,
       kills: world.kills,
@@ -3065,15 +3531,8 @@ function generateSolids() {
 }
 
 function menuOverlay() {
-  overlayTitle.textContent = t("overlay.title.menu");
-  overlayText.textContent = t("overlay.text.menu");
-  overlayButton.textContent = t("ui.toBattle");
-  if (overlayMetaButton) overlayMetaButton.classList.remove("hidden");
+  showMainMenu();
   hideScoreEntry();
-  closeWaveBonusSelection();
-  hideWaveClearOverlay();
-  hideDeathSequenceOverlay();
-  closeMetaOverlay();
   renderMetaUpgrades();
 }
 
@@ -3083,6 +3542,10 @@ function resetGame() {
   world.foes = [];
   world.particles = [];
   world.pickups = [];
+  world.weaponPickupPromptTarget = null;
+  world.weaponPickupTarget = null;
+  world.weaponPickupHoldTime = 0;
+  world.weaponPickupHoldProgress = 0;
   world.gibs = [];
   world.muzzleFlashes = [];
   world.deathEffects = [];
@@ -3099,6 +3562,9 @@ function resetGame() {
   world.kills = 0;
   world.runCreditsEarned = 0;
   world.runMetaAwarded = false;
+  world.stateBeforePause = null;
+  world.pauseOpenedAt = 0;
+  world.resultOverlayKind = null;
   world.waveClearTimer = 0;
   world.waveClearPendingPerk = false;
   world.screenShake = 0;
@@ -3111,6 +3577,8 @@ function resetGame() {
   world.buffs = { rapid: 0, speed: 0, armor: 0, drone: 0 };
   world.activeWaveBonus = null;
   world.pendingWaveBonuses = [];
+  world.perkRerollCapacity = getMetaRerollCapacity();
+  world.perkRerollsLeft = world.perkRerollCapacity;
   world.waveBonusExpiresOnWave = 0;
   world.acquiredRunBonuses = [];
   world.buildTagsCounter = {};
@@ -3155,6 +3623,8 @@ function resetGame() {
 }
 
 async function startGame() {
+  hideMainMenu();
+  overlay.classList.remove("visible");
   await assets.loadAll();
   await audio.unlock();
   audio.resetBattlePlaylist();
@@ -3166,11 +3636,12 @@ async function startGame() {
   world.state = "intermission";
   world.intermissionTimer = 2.6;
   banner(t("banner.operationStart.title"), t("banner.operationStart.subtitle"), 2.4, "#29d3c2");
-  overlay.classList.remove("visible");
   closeWaveBonusSelection();
   hideWaveClearOverlay();
   hideDeathSequenceOverlay();
   closeMetaOverlay();
+  closeLeaderboardOverlay();
+  closeControlsOverlay();
   renderMetaUpgrades();
 }
 
@@ -3594,6 +4065,19 @@ export {
   fullscreenRoot,
   gameFrame,
   fullscreenButton,
+  mainMenuOverlay,
+  mainMenuStartButton,
+  mainMenuControlsButton,
+  mainMenuUpgradesButton,
+  mainMenuHallButton,
+  mainMenuFullscreenButton,
+  mainMenuFullscreenState,
+  mainMenuAudioButton,
+  mainMenuAudioPanel,
+  mainMenuAudioState,
+  mainMenuExitButton,
+  controlsOverlay,
+  closeControlsButton,
   healthValue,
   healthBar,
   healthBarFill,
@@ -3606,6 +4090,10 @@ export {
   waveBonusBadge,
   leaderboardCount,
   leaderboardBody,
+  openLeaderboardButton,
+  closeLeaderboardButton,
+  leaderboardOverlay,
+  leaderboardFullBody,
   startButton,
   menuMetaButton,
   overlay,
@@ -3616,6 +4104,7 @@ export {
   audioPrompt,
   perkOverlay,
   perkSynergyPanel,
+  perkControls,
   perkChoices,
   metaOverlay,
   closeMetaButton,
@@ -3634,6 +4123,10 @@ export {
   playerNameInput,
   saveScoreButton,
   saveScoreStatus,
+  pauseOverlay,
+  resumeRunButton,
+  abortRunButton,
+  pauseMainMenuButton,
   masterVolume,
   musicVolume,
   sfxVolume,
@@ -3704,12 +4197,29 @@ export {
   saveLeaderboard,
   saveMetaProgress,
   renderLeaderboard,
+  openLeaderboardOverlay,
+  closeLeaderboardOverlay,
+  selectLeaderboardEntry,
   renderMetaUpgrades,
   showScoreEntry,
   hideScoreEntry,
   saveLeaderboardEntry,
   openMetaOverlay,
   closeMetaOverlay,
+  showMainMenu,
+  hideMainMenu,
+  openPauseMenu,
+  closePauseMenu,
+  abortRunToSummary,
+  returnToMainMenuFromRun,
+  returnToMainMenuFromResults,
+  toggleMainMenuAudioSettings,
+  syncMainMenuAudioState,
+  isActiveRunState,
+  isPauseAllowed,
+  openControlsOverlay,
+  closeControlsOverlay,
+  exitToProjectPage,
   getMetaUpgradeLevel,
   getMetaUpgradeCost,
   canBuyMetaUpgrade,
@@ -3728,6 +4238,7 @@ export {
   openWaveBonusSelection,
   closeWaveBonusSelection,
   expireWaveBonusIfNeeded,
+  rerollWaveBonusChoices,
   chooseWaveBonus,
   confirmDeathSequence,
   updateDeathSequence,

@@ -3,28 +3,62 @@ import {
   fullscreenRoot,
   gameFrame,
   fullscreenButton,
+  mainMenuStartButton,
+  mainMenuControlsButton,
+  mainMenuUpgradesButton,
+  mainMenuHallButton,
+  mainMenuFullscreenButton,
+  mainMenuFullscreenState,
+  mainMenuAudioButton,
+  mainMenuExitButton,
+  controlsOverlay,
+  closeControlsButton,
   world,
   assets,
   startButton,
   menuMetaButton,
+  openLeaderboardButton,
   overlayButton,
   overlayMetaButton,
   closeMetaButton,
+  closeLeaderboardButton,
   audioPrompt,
   perkSynergyPanel,
+  perkControls,
   perkChoices,
+  leaderboardOverlay,
+  leaderboardFullBody,
+  metaOverlay,
   metaUpgradeList,
   saveScoreButton,
   playerNameInput,
+  resumeRunButton,
+  abortRunButton,
+  pauseMainMenuButton,
   masterVolume,
   musicVolume,
   sfxVolume,
   audio,
   startGame,
   saveLeaderboardEntry,
+  selectLeaderboardEntry,
   chooseWaveBonus,
+  rerollWaveBonusChoices,
   togglePerkSynergyDescription,
   confirmDeathSequence,
+  openPauseMenu,
+  closePauseMenu,
+  abortRunToSummary,
+  returnToMainMenuFromRun,
+  returnToMainMenuFromResults,
+  toggleMainMenuAudioSettings,
+  syncMainMenuAudioState,
+  isPauseAllowed,
+  openLeaderboardOverlay,
+  closeLeaderboardOverlay,
+  openControlsOverlay,
+  closeControlsOverlay,
+  exitToProjectPage,
   openMetaOverlay,
   closeMetaOverlay,
   buyMetaUpgrade,
@@ -46,6 +80,7 @@ function pointer(event) {
 }
 
 function applyVolumeSettings() {
+  if (!masterVolume || !musicVolume || !sfxVolume) return;
   audio.setVolumes({
     master: Number(masterVolume.value) / 100,
     music: Number(musicVolume.value) / 100,
@@ -54,7 +89,7 @@ function applyVolumeSettings() {
 }
 
 function syncCurrentMusic() {
-  const musicMode = world.state === "playing" || world.state === "intermission" || world.state === "wave_clear" || world.state === "perk_select" ? "battle" : "menu";
+  const musicMode = world.state === "playing" || world.state === "intermission" || world.state === "wave_clear" || world.state === "perk_select" || world.state === "paused" ? "battle" : "menu";
   audio.setMode(musicMode);
 }
 
@@ -94,6 +129,17 @@ function syncFullscreenUi() {
     fullscreenButton.setAttribute("aria-label", active ? t("ui.exitFullscreen") : t("ui.fullscreen"));
     fullscreenButton.title = active ? t("ui.exitFullscreen") : t("ui.fullscreen");
   }
+  if (mainMenuFullscreenState) {
+    mainMenuFullscreenState.textContent = active ? t("mainMenu.on") : t("mainMenu.off");
+  }
+  mainMenuFullscreenButton?.setAttribute(
+    "aria-label",
+    active ? t("mainMenu.fullscreenOn") : t("mainMenu.fullscreenOff"),
+  );
+  mainMenuFullscreenButton?.setAttribute(
+    "title",
+    active ? t("mainMenu.fullscreenOn") : t("mainMenu.fullscreenOff"),
+  );
   requestAnimationFrame(resizeGameViewportForFullscreen);
 }
 
@@ -106,28 +152,55 @@ async function resumeAutoplayMusic() {
 
 function initInput() {
   window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+
+      if (controlsOverlay?.classList.contains("visible")) {
+        closeControlsOverlay();
+        return;
+      }
+      if (leaderboardOverlay?.classList.contains("visible")) {
+        closeLeaderboardOverlay();
+        return;
+      }
+      if (metaOverlay?.classList.contains("visible")) {
+        closeMetaOverlay();
+        return;
+      }
+      if (world.state === "death_sequence" && world.deathSequenceReadyForClick) {
+        confirmDeathSequence();
+        return;
+      }
+      if (world.state === "gameover") {
+        returnToMainMenuFromResults();
+        return;
+      }
+      if (world.state === "paused") {
+        closePauseMenu();
+        return;
+      }
+      if (isPauseAllowed()) {
+        openPauseMenu();
+        return;
+      }
+      return;
+    }
     if (world.state === "death_sequence" && world.deathSequenceReadyForClick) {
       event.preventDefault();
       confirmDeathSequence();
       return;
     }
-    if (event.key === "Escape") {
-      closeMetaOverlay();
-      return;
-    }
     const key = event.key.toLowerCase();
-    if (key === "f" && !isTextInputTarget(event.target)) {
-      event.preventDefault();
-      toggleGameFullscreen();
-      return;
-    }
+    const textInput = isTextInputTarget(event.target);
     world.keys.add(key);
+    if (event.code === "KeyE" && !textInput) world.keys.add("interact");
     if (key === "shift") dash();
     if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
   });
 
   window.addEventListener("keyup", (event) => {
     world.keys.delete(event.key.toLowerCase());
+    if (event.code === "KeyE") world.keys.delete("interact");
   });
 
   canvas.addEventListener("mousemove", pointer);
@@ -150,6 +223,7 @@ function initInput() {
     button.addEventListener("click", () => {
       setLanguage(button.dataset.languageOption);
       syncFullscreenUi();
+      syncMainMenuAudioState();
     });
   });
   document.addEventListener("fullscreenchange", syncFullscreenUi);
@@ -160,15 +234,34 @@ function initInput() {
   });
   syncFullscreenUi();
 
-  startButton.addEventListener("click", startGame);
-  overlayButton.addEventListener("click", startGame);
+  mainMenuStartButton?.addEventListener("click", startGame);
+  mainMenuControlsButton?.addEventListener("click", openControlsOverlay);
+  mainMenuUpgradesButton?.addEventListener("click", openMetaOverlay);
+  mainMenuHallButton?.addEventListener("click", openLeaderboardOverlay);
+  mainMenuAudioButton?.addEventListener("click", toggleMainMenuAudioSettings);
+  mainMenuFullscreenButton?.addEventListener("click", toggleGameFullscreen);
+  mainMenuExitButton?.addEventListener("click", exitToProjectPage);
+  closeControlsButton?.addEventListener("click", closeControlsOverlay);
+  resumeRunButton?.addEventListener("click", closePauseMenu);
+  abortRunButton?.addEventListener("click", abortRunToSummary);
+  pauseMainMenuButton?.addEventListener("click", returnToMainMenuFromRun);
+  startButton?.addEventListener("click", startGame);
+  overlayButton?.addEventListener("click", startGame);
   menuMetaButton?.addEventListener("click", openMetaOverlay);
+  openLeaderboardButton?.addEventListener("click", openLeaderboardOverlay);
   overlayMetaButton?.addEventListener("click", openMetaOverlay);
   closeMetaButton?.addEventListener("click", closeMetaOverlay);
+  closeLeaderboardButton?.addEventListener("click", closeLeaderboardOverlay);
   perkChoices?.addEventListener("click", (event) => {
     const card = event.target.closest("[data-bonus-id]");
     if (!card) return;
     chooseWaveBonus(card.dataset.bonusId);
+  });
+  perkControls?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-perk-reroll]");
+    if (!button) return;
+    event.preventDefault();
+    rerollWaveBonusChoices();
   });
   perkSynergyPanel?.addEventListener("click", (event) => {
     const chip = event.target.closest("[data-perk-synergy-id]");
@@ -177,21 +270,26 @@ function initInput() {
     event.stopPropagation();
     togglePerkSynergyDescription(chip.dataset.perkSynergyId);
   });
+  leaderboardFullBody?.addEventListener("click", (event) => {
+    const row = event.target.closest("[data-leaderboard-index]");
+    if (!row) return;
+    selectLeaderboardEntry(row.dataset.leaderboardIndex);
+  });
   metaUpgradeList?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-meta-upgrade-id]");
     if (!button) return;
     buyMetaUpgrade(button.dataset.metaUpgradeId);
   });
-  saveScoreButton.addEventListener("click", saveLeaderboardEntry);
-  playerNameInput.addEventListener("keydown", (event) => {
+  saveScoreButton?.addEventListener("click", saveLeaderboardEntry);
+  playerNameInput?.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
       event.preventDefault();
       saveLeaderboardEntry();
     }
   });
-  masterVolume.addEventListener("input", applyVolumeSettings);
-  musicVolume.addEventListener("input", applyVolumeSettings);
-  sfxVolume.addEventListener("input", applyVolumeSettings);
+  masterVolume?.addEventListener("input", applyVolumeSettings);
+  musicVolume?.addEventListener("input", applyVolumeSettings);
+  sfxVolume?.addEventListener("input", applyVolumeSettings);
 }
 
 export {

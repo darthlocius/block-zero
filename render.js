@@ -330,34 +330,43 @@ function drawSolids() {
 }
 
 function drawPickups() {
+  const pickupVisualScaleByType = {
+    med: 3,
+    armor: 3.05,
+    speed: 3.08,
+    rapid: 3.05,
+    drone: 2.8,
+  };
+
   for (const pickup of world.pickups) {
     const bob = Math.sin(pickup.pulse) * 3;
     const size = pickup.radius + 2.6 + Math.sin(pickup.pulse * 1.6) * 1.4;
+    const isWeapon = pickup.type.startsWith("weapon-");
+    const visualScale = isWeapon ? 2.9 : (pickupVisualScaleByType[pickup.type] || 3);
     const imageKey = pickup.type.startsWith("weapon-")
       ? `weapon_${pickup.type.replace("weapon-", "")}`
       : `pickup_${pickup.type}`;
     ctx.save();
     ctx.translate(pickup.x, pickup.y + bob);
     const shimmer = 0.5 + Math.sin(pickup.pulse * 2.1) * 0.22;
-    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, size + 16);
+    const halo = ctx.createRadialGradient(0, 0, 0, 0, 0, size + 18);
     halo.addColorStop(0, `rgba(255, 251, 214, ${0.4 * shimmer})`);
     halo.addColorStop(0.35, `rgba(255, 220, 117, ${0.24 * shimmer})`);
     halo.addColorStop(0.75, `rgba(255, 189, 64, ${0.12 * shimmer})`);
     halo.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = halo;
     ctx.beginPath();
-    ctx.arc(0, 0, size + 16, 0, TAU);
+    ctx.arc(0, 0, size + 18, 0, TAU);
     ctx.fill();
     ctx.strokeStyle = `rgba(255, 230, 144, ${0.42 + shimmer * 0.22})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, 0, size + 9, 0, TAU);
+    ctx.arc(0, 0, size + 11, 0, TAU);
     ctx.stroke();
-    if (assets.drawImage(ctx, imageKey, 0, 0, size * 2.6, size * 2.6)) {
+    if (assets.drawImage(ctx, imageKey, 0, 0, size * visualScale, size * visualScale)) {
       ctx.restore();
       continue;
     }
-    const isWeapon = pickup.type.startsWith("weapon-");
     const glow = { med: "#ff5b5b", rapid: "#ff9d43", speed: "#8af2ff", armor: "#7cff93", drone: "#ff5cf4" };
     ctx.fillStyle = isWeapon ? "rgba(134, 247, 255, 0.22)" : `${glow[pickup.type]}33`;
     ctx.beginPath();
@@ -624,6 +633,44 @@ function drawObjectDebris() {
     ctx.fillRect(-debris.w / 2, -debris.h / 2, debris.w, debris.h);
     ctx.restore();
   }
+}
+
+function drawWeaponPickupPrompt() {
+  const pickup = world.weaponPickupPromptTarget;
+  if (!pickup) return;
+
+  const uiScale = world.canvasUiScale || 1;
+  const text = t("pickup.holdToEquipWeapon");
+  const x = pickup.x;
+  const y = pickup.y - 44;
+  const fontSize = Math.max(10, 13 * uiScale);
+  const paddingX = 10 * uiScale;
+  const h = 28 * uiScale;
+
+  ctx.save();
+  ctx.font = `${fontSize}px "Space Grotesk", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const w = Math.max(142 * uiScale, ctx.measureText(text).width + paddingX * 2);
+
+  roundedRect(x - w / 2, y - h / 2, w, h, 8 * uiScale);
+  ctx.fillStyle = "rgba(0, 0, 0, 0.62)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 211, 106, 0.48)";
+  ctx.lineWidth = Math.max(1, uiScale);
+  ctx.stroke();
+
+  ctx.fillStyle = "#ffd36a";
+  ctx.fillText(text, x, y - 2 * uiScale);
+
+  const progress = clamp(world.weaponPickupHoldProgress || 0, 0, 1);
+  const lineWidth = w - paddingX * 2;
+  ctx.fillStyle = "rgba(255, 211, 106, 0.24)";
+  ctx.fillRect(x - lineWidth / 2, y + h / 2 - 6 * uiScale, lineWidth, 2 * uiScale);
+  ctx.fillStyle = "rgba(255, 211, 106, 0.86)";
+  ctx.fillRect(x - lineWidth / 2, y + h / 2 - 6 * uiScale, lineWidth * progress, 2 * uiScale);
+
+  ctx.restore();
 }
 
 function drawParticles() {
@@ -1431,6 +1478,7 @@ function render() {
   drawDeathEffects();
   drawSolids();
   drawPickups();
+  drawWeaponPickupPrompt();
   drawParticles();
   drawFoes();
   drawHunterDrone();
