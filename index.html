@@ -73,7 +73,16 @@
 
             <button id="mainMenuControlsButton" class="main-menu-button" type="button" data-i18n="mainMenu.controls">Controls</button>
 
+            <button id="mainMenuFullscreenButton" class="main-menu-button main-menu-button-status" type="button">
+              <span data-i18n="mainMenu.fullscreen">Fullscreen</span>
+              <strong id="mainMenuFullscreenState" data-i18n="mainMenu.off">OFF</strong>
+            </button>
+
             <button id="mainMenuUpgradesButton" class="main-menu-button" type="button" data-i18n="mainMenu.upgrades">Upgrades</button>
+
+            <button id="mainMenuSynergyGuideButton" class="main-menu-button" type="button" data-i18n="mainMenu.synergyGuide">Synergy Guide</button>
+
+            <button id="mainMenuAchievementsButton" class="main-menu-button" type="button" data-i18n="mainMenu.achievements">Achievements</button>
 
             <button id="mainMenuHallButton" class="main-menu-button" type="button" data-i18n="mainMenu.hallOfFame">Hall of Fame</button>
 
@@ -105,15 +114,17 @@
               </div>
             </div>
 
-            <button id="mainMenuFullscreenButton" class="main-menu-button main-menu-button-status" type="button">
-              <span data-i18n="mainMenu.fullscreen">Fullscreen</span>
-              <strong id="mainMenuFullscreenState" data-i18n="mainMenu.off">OFF</strong>
-            </button>
-
             <button id="mainMenuExitButton" class="main-menu-button main-menu-button-danger" type="button" data-i18n="mainMenu.exit">Exit</button>
           </nav>
+          <p
+            id="buildVersion"
+            class="main-menu-build-version"
+            aria-label="Build version"
+          ></p>
         </div>
       </div>
+
+      <div id="cheatToastRoot" class="cheat-toast-root" aria-live="polite"></div>
 
       <div id="controlsOverlay" class="menu-modal-overlay" aria-live="polite">
         <div class="menu-modal-panel">
@@ -188,9 +199,16 @@
         </div>
 
         <div id="perkOverlay" class="perk-overlay" aria-live="polite">
-          <div class="perk-panel">
-            <p class="overlay-tag" data-i18n="perk.tag">Augment Synthesis</p>
-            <h2 data-i18n="perk.title">Wave Cleared</h2>
+          <div id="perkPanel" class="perk-panel">
+            <div class="perk-panel-head">
+              <div>
+                <p class="overlay-tag" data-i18n="perk.tag">Augment Synthesis</p>
+                <h2 data-i18n="perk.title">Wave Cleared</h2>
+              </div>
+              <button id="perkSynergyGuideButton" class="action action-ghost action-small" type="button" data-i18n="synergyGuide.open">
+                Synergy Guide
+              </button>
+            </div>
             <p class="perk-subtitle" data-i18n="perk.subtitle">Choose an augment for the next wave</p>
             <p id="perkHint" class="perk-hint">Stack bonuses in the same direction to unlock synergies.</p>
             <div id="perkSynergyPanel" class="perk-synergy-panel hidden" aria-live="polite"></div>
@@ -221,11 +239,19 @@
 
             <div id="runSummaryPanel" class="run-summary-panel hidden">
               <div class="run-summary-grid">
+                <div><span data-i18n="summary.result">Result</span><strong id="runSummaryResult">-</strong></div>
+                <div><span data-i18n="summary.duration">Duration</span><strong id="runSummaryDuration">0:00</strong></div>
                 <div><span data-i18n="summary.wave">Wave</span><strong id="runSummaryWave">0</strong></div>
                 <div><span data-i18n="summary.kills">Kills</span><strong id="runSummaryKills">0</strong></div>
                 <div><span data-i18n="summary.score">Score</span><strong id="runSummaryScore">0</strong></div>
+                <div><span data-i18n="summary.maxCombo">Max combo</span><strong id="runSummaryMaxCombo">x1.0</strong></div>
+                <div><span data-i18n="summary.weapon">Weapon</span><strong id="runSummaryWeapon">Pistol</strong></div>
                 <div><span data-i18n="summary.creditsEarned">Run credits</span><strong id="runSummaryCreditsEarned">0</strong></div>
                 <div><span data-i18n="summary.creditsTotal">Credit balance</span><strong id="runSummaryCreditsTotal">0</strong></div>
+                <div class="run-summary-wide">
+                  <span data-i18n="summary.synergies">Synergies</span>
+                  <div id="runSummarySynergies" class="run-summary-synergy-list">-</div>
+                </div>
               </div>
             </div>
 
@@ -258,6 +284,7 @@
           <button class="language-button active" type="button" data-language-option="en" aria-pressed="true">EN</button>
           <button class="language-button" type="button" data-language-option="ru" aria-pressed="false">RU</button>
         </div>
+        <button id="metaSynergyGuideButton" class="action action-ghost" type="button" data-i18n="synergyGuide.open">Synergy Guide</button>
         <button id="closeMetaButton" class="action action-ghost" data-i18n="ui.back">Back</button>
       </div>
 
@@ -279,10 +306,92 @@
         </section>
         <section class="meta-upgrades-panel">
           <p class="audio-title" data-i18n="meta.upgradeLine">Upgrade Line</p>
+
+          <div id="metaUpgradeTabs" class="meta-upgrade-tabs" role="tablist" aria-label="Upgrade category">
+            <button class="meta-upgrade-tab active" type="button" data-meta-tab="general" data-i18n="meta.tab.general" aria-selected="true">
+              General Upgrades
+            </button>
+            <button class="meta-upgrade-tab" type="button" data-meta-tab="armory" data-i18n="meta.tab.armory" aria-selected="false">
+              Armory
+            </button>
+          </div>
+
           <div id="metaUpgradeList" class="meta-upgrade-list"></div>
         </section>
       </div>
     </div>
+      </div>
+      <div id="synergyGuideOverlay" class="synergy-guide-overlay" aria-live="polite">
+        <div class="synergy-guide-panel" role="dialog" aria-modal="true" aria-label="Synergy Guide" data-i18n-aria-label="synergyGuide.ariaLabel">
+          <div class="synergy-guide-head">
+            <div>
+              <p class="overlay-tag" data-i18n="synergyGuide.tag">Build Archive</p>
+              <h2 data-i18n="synergyGuide.title">Synergy Guide</h2>
+              <p class="synergy-guide-subtitle" data-i18n="synergyGuide.subtitle">
+                Study build paths and track your current run progress.
+              </p>
+            </div>
+
+            <button id="closeSynergyGuideButton" class="modal-close-button" type="button" aria-label="Close" data-i18n-aria-label="ui.close">
+              ×
+            </button>
+          </div>
+
+          <div id="synergyGuideList" class="synergy-guide-list"></div>
+
+          <div class="synergy-guide-actions">
+            <button id="backSynergyGuideButton" class="action action-ghost" type="button" data-i18n="ui.back">
+              Back
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="achievementsOverlay" class="achievements-overlay" aria-live="polite">
+        <div class="achievements-panel" role="dialog" aria-modal="true" aria-label="Achievements" data-i18n-aria-label="achievements.ariaLabel">
+          <div class="achievements-head">
+            <div>
+              <p class="overlay-tag" data-i18n="achievements.tag">Combat Archive</p>
+              <h2 data-i18n="achievements.title">Achievements</h2>
+              <p class="achievements-subtitle" data-i18n="achievements.subtitle">
+                Track combat milestones, weapon trials, and long-term records.
+              </p>
+            </div>
+
+            <button id="closeAchievementsButton" class="modal-close-button" type="button" aria-label="Close" data-i18n-aria-label="ui.close">
+              ×
+            </button>
+          </div>
+
+          <div class="achievements-summary">
+            <div class="achievement-summary-card">
+              <span data-i18n="achievements.unlocked">Unlocked</span>
+              <strong id="achievementsUnlockedCount">0 / 0</strong>
+            </div>
+
+            <div class="achievement-summary-card">
+              <span data-i18n="achievements.totalKills">Total kills</span>
+              <strong id="achievementsTotalKills">0</strong>
+            </div>
+
+            <div class="achievement-summary-card">
+              <span data-i18n="achievements.swarmKills">Swarm kills</span>
+              <strong id="achievementsSwarmKills">0</strong>
+            </div>
+
+            <div class="achievement-summary-card">
+              <span data-i18n="achievements.barrelsDestroyed">Barrels destroyed</span>
+              <strong id="achievementsBarrelsDestroyed">0</strong>
+            </div>
+          </div>
+
+          <div id="achievementsList" class="achievements-list"></div>
+
+          <div class="achievements-actions">
+            <button id="backAchievementsButton" class="action action-ghost" type="button" data-i18n="ui.back">
+              Back
+            </button>
+          </div>
+        </div>
       </div>
       <div id="pauseOverlay" class="pause-overlay" aria-live="polite">
         <div class="pause-card">
@@ -333,6 +442,7 @@
                   <span data-i18n="leaderboard.scoreShort">Score</span>
                   <span data-i18n="leaderboard.killsShort">K</span>
                   <span data-i18n="leaderboard.waveShort">W</span>
+                  <span data-i18n="leaderboard.synergiesShort">Syn</span>
                   <span data-i18n="leaderboard.date">Date</span>
                 </div>
                 <div id="leaderboardFullBody" class="leaderboard-full-body"></div>
@@ -345,6 +455,7 @@
           </div>
         </div>
       </div>
+      <div id="achievementToastRoot" class="achievement-toast-root" aria-live="polite"></div>
       </div>
     </section>
   </main>

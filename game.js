@@ -11,6 +11,8 @@ const mainMenuOverlay = document.getElementById("mainMenuOverlay");
 const mainMenuStartButton = document.getElementById("mainMenuStartButton");
 const mainMenuControlsButton = document.getElementById("mainMenuControlsButton");
 const mainMenuUpgradesButton = document.getElementById("mainMenuUpgradesButton");
+const mainMenuSynergyGuideButton = document.getElementById("mainMenuSynergyGuideButton");
+const mainMenuAchievementsButton = document.getElementById("mainMenuAchievementsButton");
 const mainMenuHallButton = document.getElementById("mainMenuHallButton");
 const mainMenuFullscreenButton = document.getElementById("mainMenuFullscreenButton");
 const mainMenuFullscreenState = document.getElementById("mainMenuFullscreenState");
@@ -52,27 +54,50 @@ const audioPrompt = document.getElementById("audioPrompt");
 const waveClearOverlay = document.getElementById("waveClearOverlay");
 const perkOverlay = document.getElementById("perkOverlay");
 const perkHint = document.getElementById("perkHint");
+const perkPanel = document.getElementById("perkPanel");
+const perkSynergyGuideButton = document.getElementById("perkSynergyGuideButton");
 const perkSynergyPanel = document.getElementById("perkSynergyPanel");
 const perkControls = document.getElementById("perkControls");
 const perkChoices = document.getElementById("perkChoices");
 const deathSequenceOverlay = document.getElementById("deathSequenceOverlay");
 const metaOverlay = document.getElementById("metaOverlay");
+const metaSynergyGuideButton = document.getElementById("metaSynergyGuideButton");
 const closeMetaButton = document.getElementById("closeMetaButton");
+const synergyGuideOverlay = document.getElementById("synergyGuideOverlay");
+const synergyGuideList = document.getElementById("synergyGuideList");
+const closeSynergyGuideButton = document.getElementById("closeSynergyGuideButton");
+const backSynergyGuideButton = document.getElementById("backSynergyGuideButton");
+const achievementsOverlay = document.getElementById("achievementsOverlay");
+const closeAchievementsButton = document.getElementById("closeAchievementsButton");
+const backAchievementsButton = document.getElementById("backAchievementsButton");
+const achievementsList = document.getElementById("achievementsList");
+const achievementsUnlockedCount = document.getElementById("achievementsUnlockedCount");
+const achievementsTotalKills = document.getElementById("achievementsTotalKills");
+const achievementsSwarmKills = document.getElementById("achievementsSwarmKills");
+const achievementsBarrelsDestroyed = document.getElementById("achievementsBarrelsDestroyed");
+const achievementToastRoot = document.getElementById("achievementToastRoot");
 const metaCreditsValue = document.getElementById("metaCreditsValue");
 const metaEarnedValue = document.getElementById("metaEarnedValue");
 const metaStatsGrid = document.getElementById("metaStatsGrid");
 const metaUpgradeList = document.getElementById("metaUpgradeList");
+const metaUpgradeTabs = document.getElementById("metaUpgradeTabs");
 const metaTeaserCredits = document.getElementById("metaTeaserCredits");
 const runSummaryPanel = document.getElementById("runSummaryPanel");
+const runSummaryResult = document.getElementById("runSummaryResult");
+const runSummaryDuration = document.getElementById("runSummaryDuration");
 const runSummaryWave = document.getElementById("runSummaryWave");
 const runSummaryKills = document.getElementById("runSummaryKills");
 const runSummaryScore = document.getElementById("runSummaryScore");
+const runSummaryMaxCombo = document.getElementById("runSummaryMaxCombo");
+const runSummaryWeapon = document.getElementById("runSummaryWeapon");
 const runSummaryCreditsEarned = document.getElementById("runSummaryCreditsEarned");
 const runSummaryCreditsTotal = document.getElementById("runSummaryCreditsTotal");
+const runSummarySynergies = document.getElementById("runSummarySynergies");
 const scoreEntryPanel = document.getElementById("scoreEntryPanel");
 const playerNameInput = document.getElementById("playerNameInput");
 const saveScoreButton = document.getElementById("saveScoreButton");
 const saveScoreStatus = document.getElementById("saveScoreStatus");
+const cheatToastRoot = document.getElementById("cheatToastRoot");
 const pauseOverlay = document.getElementById("pauseOverlay");
 const resumeRunButton = document.getElementById("resumeRunButton");
 const abortRunButton = document.getElementById("abortRunButton");
@@ -90,11 +115,79 @@ const WORLD_SCALE = 1.8;
 const LEADERBOARD_KEY = "block-zero-leaderboard-v1";
 const LEADERBOARD_NAME_KEY = "block-zero-player-name";
 const META_PROGRESS_KEY = "block-zero-meta-v1";
+const ACHIEVEMENTS_STORAGE_KEY = "block-zero-achievements-v1";
+
+const achievementDefinitions = [
+  { id: "first_blood", iconIndex: 0, progressType: "counter", counter: "kills", target: 1 },
+  { id: "first_line", iconIndex: 1, progressType: "runWave", target: 5 },
+  { id: "twelfth_line", iconIndex: 2, progressType: "runWave", target: 12 },
+  { id: "mr_wick", iconIndex: 3, progressType: "weaponStreak", weapon: "pistol", target: 12 },
+  { id: "gauge_fury", iconIndex: 4, progressType: "weaponStreak", weapon: "shotgun", target: 12 },
+  { id: "exterminator", iconIndex: 5, progressType: "counter", counter: "swarmKills", target: 1000 },
+  { id: "bad_day_swarm", iconIndex: 6, progressType: "runCounter", counter: "runSwarmKills", target: 250 },
+  { id: "beginner", iconIndex: 7, progressType: "tierCounter", counter: "kills", from: 0, target: 2500 },
+  { id: "experienced_killer", iconIndex: 8, progressType: "tierCounter", counter: "kills", from: 2500, target: 5000 },
+  { id: "death_machine", iconIndex: 9, progressType: "tierCounter", counter: "kills", from: 5000, target: 10000 },
+  { id: "hate_barrels", iconIndex: 10, progressType: "counter", counter: "barrelsDestroyed", target: 100 },
+  { id: "dont_touch_that", iconIndex: 11, progressType: "runCounter", counter: "runBarrelsDestroyed", target: 10 },
+  { id: "synergy_online", iconIndex: 12, progressType: "runCounter", counter: "runSynergiesActivated", target: 1 },
+  { id: "war_engineer", iconIndex: 13, progressType: "runCounter", counter: "runSynergiesActivated", target: 3 },
+  { id: "giant_down", iconIndex: 14, progressType: "flag", flag: "bossKilled" },
+  { id: "elusive", iconIndex: 15, progressType: "flag", flag: "waveClearedWithoutDamage" },
+];
+
+const defaultAchievementState = () => ({
+  unlocked: {},
+  counters: {
+    kills: 0,
+    swarmKills: 0,
+    barrelsDestroyed: 0,
+  },
+});
+
+let achievementState = loadAchievementState();
+let cheatToastTimeout = null;
 
 const enemies = {
   animal: { id: "animal", label: "Hellhound", speed: 168, radius: 18, hp: 34, color: "#ff8d3a", flesh: "#6e3b2a", reward: 11, damage: 9, attackCooldown: 0.72, blood: "#ff6e42", ranged: false },
   monster: { id: "monster", label: "Orb", speed: 66, radius: 24, hp: 64, color: "#8dff5c", flesh: "#3b5a28", reward: 18, damage: 18, attackCooldown: 2.0, blood: "#93ff67", ranged: true, projectileSpeed: 210 },
   criminal: { id: "criminal", label: "Tank", speed: 94, radius: 21, hp: 52, color: "#45c7ff", flesh: "#3b4254", reward: 15, damage: 14, attackCooldown: 1.65, blood: "#68e1ff", ranged: true, projectileSpeed: 250 },
+  swarm: {
+    id: "swarm",
+    label: "Swarm",
+    speed: 212,
+    radius: 13,
+    spacingRadius: 17,
+    hp: 12,
+    color: "#9cff2f",
+    flesh: "#171b16",
+    reward: 1,
+    damage: 4,
+    attackCooldown: 0.95,
+    blood: "#9cff2f",
+    ranged: false,
+    comboGain: 0.02,
+    pickupChanceMul: 0.10,
+  },
+  techpriest: {
+    id: "techpriest",
+    label: "Tech-Priest of the Swarm",
+    speed: 74,
+    radius: 34,
+    hp: 420,
+    color: "#7cff4f",
+    flesh: "#101812",
+    reward: 120,
+    damage: 13,
+    attackCooldown: 0.55,
+    blood: "#9cff2f",
+    ranged: true,
+    projectileSpeed: 560,
+    comboGain: 0.75,
+    pickupChanceMul: 1.0,
+    shieldRatio: 1.15,
+    armorReduction: 0.3,
+  },
 };
 
 const bosses = [
@@ -143,6 +236,8 @@ const assetManifest = {
     enemy_animal: "assets/images/enemies/hellhound.png",
     enemy_monster: "assets/images/enemies/orb.png",
     enemy_criminal: "assets/images/enemies/tank.png",
+    enemy_swarm: "assets/images/enemies/swarm.png",
+    enemy_techpriest: "assets/images/enemies/swarm-techpriest.png",
     boss: "assets/images/boss/alpha.png",
     boss_alpha: "assets/images/boss/alpha.png",
     boss_abomination: "assets/images/boss/abomination.png",
@@ -392,6 +487,60 @@ const metaUpgrades = {
     baseCost: 1400,
     costScale: 0,
   },
+  armory_damage: {
+    id: "armory_damage",
+    category: "armory",
+    title: "Убойная калибровка",
+    description: "+4% к урону всего оружия за уровень.",
+    maxLevel: 5,
+    baseCost: 180,
+    costScale: 115,
+  },
+  armory_fire_rate: {
+    id: "armory_fire_rate",
+    category: "armory",
+    title: "Разогнанные затворы",
+    description: "Уменьшает задержку между выстрелами на 3% за уровень.",
+    maxLevel: 5,
+    baseCost: 220,
+    costScale: 140,
+  },
+  armory_projectile_speed: {
+    id: "armory_projectile_speed",
+    category: "armory",
+    title: "Ускоренный импульс",
+    description: "+4% к скорости снарядов за уровень.",
+    maxLevel: 5,
+    baseCost: 160,
+    costScale: 105,
+  },
+  armory_range: {
+    id: "armory_range",
+    category: "armory",
+    title: "Дальняя баллистика",
+    description: "+6% к дальности полёта снарядов за уровень.",
+    maxLevel: 5,
+    baseCost: 170,
+    costScale: 110,
+  },
+  armory_stability: {
+    id: "armory_stability",
+    category: "armory",
+    title: "Гиростабилизаторы ствола",
+    description: "-5% к разбросу оружия за уровень.",
+    maxLevel: 5,
+    baseCost: 180,
+    costScale: 120,
+  },
+  armory_pierce: {
+    id: "armory_pierce",
+    category: "armory",
+    title: "Пробойные сердечники",
+    description: "+1 к пробитию за уровень для пистолета, SMG и плазменной винтовки. Дробовик не получает пробитие.",
+    maxLevel: 2,
+    baseCost: 850,
+    costScale: 520,
+  },
 };
 
 function createDefaultMetaState() {
@@ -449,13 +598,31 @@ const world = {
   combo: 1,
   comboTimer: 0,
   wave: 0,
+  techpriestEligibleMisses: 0,
+  techpriestSpawnedThisRun: 0,
   kills: 0,
   runCreditsEarned: 0,
+  runDuration: 0,
+  maxCombo: 1,
+  weaponsUsed: [],
+  runEndReason: "",
   runMetaAwarded: false,
+  runStatsCounted: false,
+  runSwarmKills: 0,
+  runBarrelsDestroyed: 0,
+  runSynergiesActivated: 0,
+  runClearedWaves: 0,
+  runWeaponStreak: {
+    weapon: "pistol",
+    clearedWaves: 0,
+  },
+  damageTakenThisWave: 0,
   waveClearTimer: 0,
   waveClearPendingPerk: false,
   intermissionTimer: 0,
   banner: null,
+  bannerQueue: [],
+  bossWarning: null,
   currentWave: null,
   buffs: { rapid: 0, speed: 0, armor: 0, drone: 0 },
   activeWaveBonus: null,
@@ -484,9 +651,32 @@ const world = {
   deathSequenceReadyForClick: false,
   deathOverlayAlpha: 0,
   synergyToast: null,
+  pendingSynergyAnnouncements: [],
+  achievementToastQueue: [],
+  achievementToastActive: false,
+  achievementStateSnapshot: null,
+  cheatsUsed: false,
+  activeCheats: {
+    godMode: false,
+  },
+  nextRunCheats: {
+    godMode: false,
+    forceTechpriest: false,
+    armoryDrop: false,
+    swarmHell: false,
+  },
+  cheatToast: null,
+  cheatToastTimer: 0,
 };
 
 const metaState = loadMetaProgress();
+let activeMetaUpgradeTab = "general";
+
+function setMetaUpgradeTab(tab) {
+  if (tab !== "general" && tab !== "armory") return;
+  activeMetaUpgradeTab = tab;
+  renderMetaUpgrades();
+}
 
 const waveBonusRarities = {
   common: {
@@ -977,6 +1167,10 @@ const synergies = {
     title: "Пулевой шторм",
     description: "Поток огня усиливается. Периодически появляется дополнительный выстрел.",
     hintTags: ["rapidfire", "offense", "weapon_pistol", "weapon_smg"],
+    requirements: [
+      { tag: "rapidfire", count: 1 },
+      { tag: "offense", count: 2 },
+    ],
     condition(tags) {
       return (tags.rapidfire || 0) >= 1 && (tags.offense || 0) >= 2;
     },
@@ -986,6 +1180,11 @@ const synergies = {
     title: "Шоковый коридор",
     description: "Плазма пробивает цели и вызывает цепные разряды.",
     hintTags: ["weapon_plasma", "pierce", "offense"],
+    requirements: [
+      { tag: "weapon_plasma", count: 1 },
+      { tag: "pierce", count: 1 },
+      { tag: "offense", count: 1 },
+    ],
     condition(tags) {
       return (tags.weapon_plasma || 0) >= 1 && (tags.pierce || 0) >= 1 && (tags.offense || 0) >= 1;
     },
@@ -995,6 +1194,10 @@ const synergies = {
     title: "Контроль толпы",
     description: "Дробовик сильнее замедляет и отбрасывает врагов.",
     hintTags: ["control", "weapon_shotgun"],
+    requirements: [
+      { tag: "control", count: 1 },
+      { tag: "weapon_shotgun", count: 1 },
+    ],
     condition(tags) {
       return (tags.control || 0) >= 1 && (tags.weapon_shotgun || 0) >= 1;
     },
@@ -1004,6 +1207,10 @@ const synergies = {
     title: "Цикл падальщика",
     description: "Убийства чаще дают ресурсы и шанс восстановления.",
     hintTags: ["utility", "sustain"],
+    requirements: [
+      { tag: "utility", count: 1 },
+      { tag: "sustain", count: 1 },
+    ],
     condition(tags) {
       return (tags.utility || 0) >= 1 && (tags.sustain || 0) >= 1;
     },
@@ -1013,6 +1220,10 @@ const synergies = {
     title: "Рой охотников",
     description: "Дроны усиливаются и стреляют чаще.",
     hintTags: ["drone", "offense"],
+    requirements: [
+      { tag: "drone", count: 1 },
+      { tag: "offense", count: 1 },
+    ],
     condition(tags) {
       return (tags.drone || 0) >= 1 && (tags.offense || 0) >= 1;
     },
@@ -1040,6 +1251,15 @@ function bossLabel(boss) {
   return t(`boss.${id}`);
 }
 
+function bossDisplayName(boss) {
+  if (!boss) return t("boss.unknown");
+  const id = boss.bossId || boss.id || boss.kind || "";
+  const key = id ? `boss.${id}` : "";
+  const translated = key ? t(key) : "";
+  if (translated && translated !== key) return translated;
+  return boss.label || boss.name || id || t("boss.unknown");
+}
+
 function bonusTitle(bonus) {
   return t(`bonus.${bonus.id}.title`);
 }
@@ -1060,6 +1280,51 @@ function synergyTitle(synergy) {
 function synergyDescription(synergy) {
   const id = typeof synergy === "string" ? synergy : synergy?.id;
   return t(`synergy.${id}.description`);
+}
+
+function getSynergyRequirements(synergy) {
+  return Array.isArray(synergy?.requirements) ? synergy.requirements : [];
+}
+
+function getSynergyRequirementProgress(synergy, tags = world.buildTagsCounter) {
+  return getSynergyRequirements(synergy).map((requirement) => {
+    const have = tags[requirement.tag] || 0;
+    const needed = requirement.count || 1;
+
+    return {
+      tag: requirement.tag,
+      have,
+      needed,
+      complete: have >= needed,
+      label: labelForBuildTag(requirement.tag),
+    };
+  });
+}
+
+function getSynergyProgressRatio(synergy, tags = world.buildTagsCounter) {
+  const progress = getSynergyRequirementProgress(synergy, tags);
+  if (!progress.length) return 0;
+
+  const completedUnits = progress.reduce((sum, item) => (
+    sum + Math.min(item.have, item.needed)
+  ), 0);
+
+  const requiredUnits = progress.reduce((sum, item) => sum + item.needed, 0);
+
+  return requiredUnits > 0 ? completedUnits / requiredUnits : 0;
+}
+
+function getSynergyProgressText(synergy, tags = world.buildTagsCounter) {
+  const progress = getSynergyRequirementProgress(synergy, tags);
+  const completedUnits = progress.reduce((sum, item) => (
+    sum + Math.min(item.have, item.needed)
+  ), 0);
+  const requiredUnits = progress.reduce((sum, item) => sum + item.needed, 0);
+
+  return t("synergyGuide.progress", {
+    current: completedUnits,
+    total: requiredUnits,
+  });
 }
 
 function metaUpgradeTitle(upgrade) {
@@ -1132,17 +1397,456 @@ function getBonusSynergyHints(bonus) {
     .slice(0, 2);
 }
 
+function getBonusSynergyActivationHints(bonus) {
+  if (!bonus) return [];
+
+  const simulatedTags = simulateTagsWithBonus(bonus);
+  const simulatedBonuses = [...world.acquiredRunBonuses, bonus.id];
+
+  return Object.values(synergies)
+    .filter((synergy) => !world.activeSynergies.includes(synergy.id))
+    .filter((synergy) => {
+      const activeNow = synergy.condition(world.buildTagsCounter, world.acquiredRunBonuses);
+      const activeAfter = synergy.condition(simulatedTags, simulatedBonuses);
+      return !activeNow && activeAfter;
+    })
+    .map((synergy) => ({
+      id: synergy.id,
+      title: synergyTitle(synergy),
+    }));
+}
+
 function showSynergyToast(synergyId) {
+  if (!synergyId) return;
+  if (!world.pendingSynergyAnnouncements.includes(synergyId)) {
+    world.pendingSynergyAnnouncements.push(synergyId);
+  }
+}
+
+function queueSynergyToast(synergyId) {
   const synergy = synergies[synergyId];
   if (!synergy) return;
-  world.synergyToast = {
+
+  queueAnnouncement({
+    kind: "synergy",
     id: synergy.id,
     title: synergyTitle(synergy),
     subtitle: t("synergy.toast"),
-    timer: 1.55,
-    total: 1.55,
-    accent: "#9fe7ff",
+    duration: 2.35,
+    accent: "#ffbf4a",
+  });
+}
+
+function queueBossWarning(bossName) {
+  queueAnnouncement({
+    kind: "boss",
+    title: t("bossWarning.title"),
+    subtitle: t("bossWarning.subtitle"),
+    bossName: bossName || t("boss.unknown"),
+    duration: 3.1,
+    accent: "#ff243d",
+  });
+}
+
+function loadAchievementState() {
+  try {
+    const raw = localStorage.getItem(ACHIEVEMENTS_STORAGE_KEY);
+    if (!raw) return defaultAchievementState();
+
+    const parsed = JSON.parse(raw);
+    return {
+      unlocked: parsed?.unlocked && typeof parsed.unlocked === "object" ? parsed.unlocked : {},
+      counters: {
+        kills: Number(parsed?.counters?.kills) || 0,
+        swarmKills: Number(parsed?.counters?.swarmKills) || 0,
+        barrelsDestroyed: Number(parsed?.counters?.barrelsDestroyed) || 0,
+      },
+    };
+  } catch (error) {
+    console.warn("Failed to load achievements", error);
+    return defaultAchievementState();
+  }
+}
+
+function saveAchievementState() {
+  try {
+    localStorage.setItem(ACHIEVEMENTS_STORAGE_KEY, JSON.stringify(achievementState));
+  } catch (error) {
+    console.warn("Failed to save achievements", error);
+  }
+}
+
+function cloneAchievementState(state = achievementState) {
+  return {
+    unlocked: { ...(state?.unlocked || {}) },
+    counters: {
+      kills: Number(state?.counters?.kills) || 0,
+      swarmKills: Number(state?.counters?.swarmKills) || 0,
+      barrelsDestroyed: Number(state?.counters?.barrelsDestroyed) || 0,
+    },
   };
+}
+
+function restoreRunAchievementSnapshot() {
+  if (!world.achievementStateSnapshot) return;
+  achievementState = cloneAchievementState(world.achievementStateSnapshot);
+  world.achievementToastQueue = [];
+  world.achievementToastActive = false;
+  if (achievementToastRoot) achievementToastRoot.innerHTML = "";
+  saveAchievementState();
+  if (achievementsOverlay?.classList.contains("visible")) {
+    renderAchievementsOverlay();
+  }
+}
+
+function isAchievementUnlocked(id) {
+  return Boolean(achievementState.unlocked?.[id]);
+}
+
+function getAchievementDefinition(id) {
+  return achievementDefinitions.find((definition) => definition.id === id);
+}
+
+function achievementTitle(definitionOrId) {
+  const id = typeof definitionOrId === "string" ? definitionOrId : definitionOrId.id;
+  return t(`achievement.${id}.title`);
+}
+
+function achievementDescription(definitionOrId) {
+  const id = typeof definitionOrId === "string" ? definitionOrId : definitionOrId.id;
+  return t(`achievement.${id}.description`);
+}
+
+function achievementIconStyle(definition) {
+  const index = Math.max(0, Math.min(15, Number(definition?.iconIndex) || 0));
+  const col = index % 4;
+  const row = Math.floor(index / 4);
+  return `--icon-col:${col}; --icon-row:${row};`;
+}
+
+function unlockAchievement(id) {
+  if (world.cheatsUsed) return false;
+  const definition = getAchievementDefinition(id);
+  if (!definition || isAchievementUnlocked(id)) return false;
+
+  achievementState.unlocked[id] = {
+    unlockedAt: Date.now(),
+  };
+
+  saveAchievementState();
+  queueAchievementToast(definition);
+
+  if (achievementsOverlay?.classList.contains("visible")) {
+    renderAchievementsOverlay();
+  }
+
+  return true;
+}
+
+function queueAchievementToast(definition) {
+  if (!definition || !achievementToastRoot) return;
+
+  world.achievementToastQueue.push(definition);
+  showNextAchievementToast();
+}
+
+function showNextAchievementToast() {
+  if (world.achievementToastActive || !achievementToastRoot) return;
+
+  const definition = world.achievementToastQueue.shift();
+  if (!definition) return;
+
+  world.achievementToastActive = true;
+  achievementToastRoot.innerHTML = (
+    `<div class="achievement-toast">`
+    + `<div class="achievement-toast-icon achievement-icon-sheet" style="${achievementIconStyle(definition)}"></div>`
+    + `<div>`
+    + `<span class="achievement-toast-kicker">${escapeHtml(t("achievements.toastUnlocked"))}</span>`
+    + `<h3>${escapeHtml(achievementTitle(definition))}</h3>`
+    + `<p>${escapeHtml(achievementDescription(definition))}</p>`
+    + `</div>`
+    + `</div>`
+  );
+
+  window.setTimeout(() => {
+    achievementToastRoot.innerHTML = "";
+    world.achievementToastActive = false;
+    showNextAchievementToast();
+  }, 4100);
+}
+
+function getRunAchievementCounter(counter) {
+  if (counter === "runSwarmKills") return world.runSwarmKills || 0;
+  if (counter === "runBarrelsDestroyed") return world.runBarrelsDestroyed || 0;
+  if (counter === "runSynergiesActivated") return world.runSynergiesActivated || 0;
+  return 0;
+}
+
+function getAchievementProgress(definition) {
+  if (isAchievementUnlocked(definition.id)) {
+    return {
+      current: definition.target || 1,
+      target: definition.target || 1,
+      ratio: 1,
+    };
+  }
+
+  if (definition.progressType === "counter") {
+    const current = Number(achievementState.counters?.[definition.counter]) || 0;
+    const target = definition.target || 1;
+    return {
+      current: Math.min(current, target),
+      target,
+      ratio: Math.min(1, current / target),
+    };
+  }
+
+  if (definition.progressType === "tierCounter") {
+    const total = Number(achievementState.counters?.[definition.counter]) || 0;
+    const from = definition.from || 0;
+    const target = definition.target || 1;
+    const stageTarget = Math.max(1, target - from);
+    const current = Math.max(0, Math.min(stageTarget, total - from));
+    return {
+      current,
+      target: stageTarget,
+      ratio: Math.min(1, current / stageTarget),
+    };
+  }
+
+  if (definition.progressType === "runWave") {
+    const current = Math.min(world.runClearedWaves || 0, definition.target || 1);
+    const target = definition.target || 1;
+    return {
+      current,
+      target,
+      ratio: Math.min(1, current / target),
+    };
+  }
+
+  if (definition.progressType === "weaponStreak") {
+    const current = world.runWeaponStreak?.weapon === definition.weapon
+      ? Math.min(world.runWeaponStreak.clearedWaves || 0, definition.target || 1)
+      : 0;
+    const target = definition.target || 1;
+    return {
+      current,
+      target,
+      ratio: Math.min(1, current / target),
+    };
+  }
+
+  if (definition.progressType === "runCounter") {
+    const current = Math.min(getRunAchievementCounter(definition.counter), definition.target || 1);
+    const target = definition.target || 1;
+    return {
+      current,
+      target,
+      ratio: Math.min(1, current / target),
+    };
+  }
+
+  return {
+    current: 0,
+    target: 1,
+    ratio: 0,
+  };
+}
+
+function formatAchievementDate(timestamp) {
+  if (!timestamp) return "";
+  try {
+    return new Intl.DateTimeFormat(getLanguage() === "ru" ? "ru-RU" : "en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(timestamp));
+  } catch {
+    return "";
+  }
+}
+
+function renderAchievementsOverlay() {
+  if (!achievementsList) return;
+
+  const unlockedCount = achievementDefinitions.filter((definition) => isAchievementUnlocked(definition.id)).length;
+  const totalCount = achievementDefinitions.length;
+
+  if (achievementsUnlockedCount) achievementsUnlockedCount.textContent = `${unlockedCount} / ${totalCount}`;
+  if (achievementsTotalKills) achievementsTotalKills.textContent = String(achievementState.counters.kills || 0);
+  if (achievementsSwarmKills) achievementsSwarmKills.textContent = String(achievementState.counters.swarmKills || 0);
+  if (achievementsBarrelsDestroyed) achievementsBarrelsDestroyed.textContent = String(achievementState.counters.barrelsDestroyed || 0);
+
+  achievementsList.innerHTML = achievementDefinitions.map((definition) => {
+    const unlocked = isAchievementUnlocked(definition.id);
+    const progress = getAchievementProgress(definition);
+    const unlockedAt = unlocked ? achievementState.unlocked[definition.id]?.unlockedAt : null;
+    const progressText = unlocked
+      ? t("achievements.completed")
+      : t("achievements.progress", { current: progress.current, total: progress.target });
+    const unlockedText = unlocked && unlockedAt
+      ? `<span class="achievement-unlocked-at">${escapeHtml(t("achievements.unlockedAt", {
+          date: formatAchievementDate(unlockedAt),
+        }))}</span>`
+      : "";
+
+    return (
+      `<article class="achievement-card${unlocked ? " unlocked" : ""}">`
+      + `<div class="achievement-icon achievement-icon-sheet" style="${achievementIconStyle(definition)}"></div>`
+      + `<div class="achievement-content">`
+      + `<div class="achievement-card-head">`
+      + `<h3>${escapeHtml(achievementTitle(definition))}</h3>`
+      + `<span class="achievement-status">${escapeHtml(unlocked ? t("achievements.statusUnlocked") : t("achievements.statusLocked"))}</span>`
+      + `</div>`
+      + `<p class="achievement-description">${escapeHtml(achievementDescription(definition))}</p>`
+      + `<div class="achievement-progress" aria-hidden="true">`
+      + `<div class="achievement-progress-fill" style="--progress:${Math.round(progress.ratio * 100)}%"></div>`
+      + `</div>`
+      + `<span class="achievement-progress-text">${escapeHtml(progressText)}</span>`
+      + unlockedText
+      + `</div>`
+      + `</article>`
+    );
+  }).join("");
+}
+
+function openAchievementsOverlay() {
+  renderAchievementsOverlay();
+  achievementsOverlay?.classList.add("visible");
+}
+
+function closeAchievementsOverlay() {
+  achievementsOverlay?.classList.remove("visible");
+}
+
+function resetRunAchievementStats() {
+  world.runSwarmKills = 0;
+  world.runBarrelsDestroyed = 0;
+  world.runSynergiesActivated = 0;
+  world.runClearedWaves = 0;
+  world.damageTakenThisWave = 0;
+  world.runWeaponStreak = {
+    weapon: player.weapon || "pistol",
+    clearedWaves: 0,
+  };
+}
+
+function isSwarmEnemy(foe) {
+  return foe?.type === "swarm"
+    || foe?.kind === "swarm"
+    || foe?.id === "swarm"
+    || foe?.enemyType === "swarm"
+    || foe?.role === "swarm";
+}
+
+function trackEnemyKilledForAchievements(foe) {
+  if (world.cheatsUsed) return;
+  achievementState.counters.kills = (achievementState.counters.kills || 0) + 1;
+  unlockAchievement("first_blood");
+
+  if (isSwarmEnemy(foe)) {
+    achievementState.counters.swarmKills = (achievementState.counters.swarmKills || 0) + 1;
+    world.runSwarmKills = (world.runSwarmKills || 0) + 1;
+    if (achievementState.counters.swarmKills >= 1000) unlockAchievement("exterminator");
+    if (world.runSwarmKills >= 250) unlockAchievement("bad_day_swarm");
+  }
+
+  const totalKills = achievementState.counters.kills || 0;
+  if (totalKills >= 2500) unlockAchievement("beginner");
+  if (totalKills >= 5000) unlockAchievement("experienced_killer");
+  if (totalKills >= 10000) unlockAchievement("death_machine");
+
+  if (foe?.boss || foe?.bossId || foe?.isBoss) {
+    unlockAchievement("giant_down");
+  }
+
+  saveAchievementState();
+
+  if (achievementsOverlay?.classList.contains("visible")) {
+    renderAchievementsOverlay();
+  }
+}
+
+function trackPlayerDamagedForAchievements(amount = 1) {
+  if (world.cheatsUsed) return;
+  if ((Number(amount) || 0) <= 0) return;
+  world.damageTakenThisWave = (world.damageTakenThisWave || 0) + Math.max(0, Number(amount) || 0);
+}
+
+function trackBarrelDestroyedForAchievements() {
+  if (world.cheatsUsed) return;
+  achievementState.counters.barrelsDestroyed = (achievementState.counters.barrelsDestroyed || 0) + 1;
+  world.runBarrelsDestroyed = (world.runBarrelsDestroyed || 0) + 1;
+
+  if (achievementState.counters.barrelsDestroyed >= 100) unlockAchievement("hate_barrels");
+  if (world.runBarrelsDestroyed >= 10) unlockAchievement("dont_touch_that");
+
+  saveAchievementState();
+
+  if (achievementsOverlay?.classList.contains("visible")) {
+    renderAchievementsOverlay();
+  }
+}
+
+function trackWaveStartedForAchievements() {
+  world.damageTakenThisWave = 0;
+}
+
+function trackWaveClearedForAchievements(clearedWave) {
+  if (world.cheatsUsed) return;
+  const waveNumber = Number(clearedWave) || world.wave || 0;
+  world.runClearedWaves = Math.max(world.runClearedWaves || 0, waveNumber);
+  if (waveNumber >= 5) unlockAchievement("first_line");
+  if (waveNumber >= 12) unlockAchievement("twelfth_line");
+
+  if ((world.damageTakenThisWave || 0) <= 0) {
+    unlockAchievement("elusive");
+  }
+
+  const currentWeapon = player.weapon || "pistol";
+  if (!world.runWeaponStreak || world.runWeaponStreak.weapon !== currentWeapon) {
+    world.runWeaponStreak = {
+      weapon: currentWeapon,
+      clearedWaves: 0,
+    };
+  }
+
+  world.runWeaponStreak.clearedWaves += 1;
+  if (currentWeapon === "pistol" && world.runWeaponStreak.clearedWaves >= 12) unlockAchievement("mr_wick");
+  if (currentWeapon === "shotgun" && world.runWeaponStreak.clearedWaves >= 12) unlockAchievement("gauge_fury");
+
+  if (achievementsOverlay?.classList.contains("visible")) {
+    renderAchievementsOverlay();
+  }
+}
+
+function trackWeaponChangedForAchievements(weaponId) {
+  if (world.cheatsUsed) return;
+  world.runWeaponStreak = {
+    weapon: weaponId || player.weapon || "pistol",
+    clearedWaves: 0,
+  };
+
+  if (achievementsOverlay?.classList.contains("visible")) {
+    renderAchievementsOverlay();
+  }
+}
+
+function trackSynergyActivatedForAchievements(synergyId) {
+  if (world.cheatsUsed) return;
+  if (!synergyId) return;
+
+  world.runSynergiesActivated = Math.max(
+    world.runSynergiesActivated || 0,
+    Array.isArray(world.activeSynergies) ? world.activeSynergies.length : 0,
+  );
+
+  if (world.runSynergiesActivated >= 1) unlockAchievement("synergy_online");
+  if (world.runSynergiesActivated >= 3) unlockAchievement("war_engineer");
+
+  if (achievementsOverlay?.classList.contains("visible")) {
+    renderAchievementsOverlay();
+  }
 }
 
 function recomputeActiveSynergies() {
@@ -1158,6 +1862,9 @@ function recomputeActiveSynergies() {
   );
   if (newlyActivated.length) console.log("[build] newlyActivatedSynergies:", [...newlyActivated]);
   console.log("[build] buildTagsCounter:", { ...world.buildTagsCounter });
+  for (const synergyId of newlyActivated) {
+    trackSynergyActivatedForAchievements(synergyId);
+  }
   return newlyActivated;
 }
 
@@ -1239,24 +1946,80 @@ function renderPerkControls() {
   `;
 }
 
+function renderSynergyGuide() {
+  if (!synergyGuideList) return;
+
+  const hasRunProgress = world.state === "playing"
+    || world.state === "wave_clear"
+    || world.state === "perk_select"
+    || world.state === "paused"
+    || world.acquiredRunBonuses.length > 0;
+
+  synergyGuideList.innerHTML = Object.values(synergies).map((synergy) => {
+    const active = world.activeSynergies.includes(synergy.id);
+    const progress = getSynergyRequirementProgress(synergy);
+    const ratio = hasRunProgress ? getSynergyProgressRatio(synergy) : 0;
+    const progressText = hasRunProgress
+      ? getSynergyProgressText(synergy)
+      : t("synergyGuide.noRunProgress");
+
+    const requirements = progress.map((item) => (
+      `<span class="synergy-guide-requirement${item.complete ? " complete" : ""}">`
+      + `<strong>${escapeHtml(item.label)}</strong>`
+      + `<span>${hasRunProgress ? `${item.have}/${item.needed}` : item.needed}</span>`
+      + `</span>`
+    )).join("");
+
+    return (
+      `<article class="synergy-guide-card${active ? " active" : ""}">`
+      + `<div class="synergy-guide-card-head">`
+      + `<h3>${escapeHtml(synergyTitle(synergy))}</h3>`
+      + `<span class="synergy-guide-status">${escapeHtml(active ? t("synergyGuide.statusActive") : t("synergyGuide.statusLocked"))}</span>`
+      + `</div>`
+      + `<p class="synergy-guide-description">${escapeHtml(synergyDescription(synergy))}</p>`
+      + `<div class="synergy-guide-requirements">${requirements}</div>`
+      + `<div class="synergy-guide-progress" aria-hidden="true">`
+      + `<div class="synergy-guide-progress-fill" style="--progress:${Math.round(ratio * 100)}%"></div>`
+      + `</div>`
+      + `<span class="synergy-guide-progress-text">${escapeHtml(progressText)}</span>`
+      + `</article>`
+    );
+  }).join("");
+}
+
+function openSynergyGuideOverlay() {
+  renderSynergyGuide();
+  synergyGuideOverlay?.classList.add("visible");
+}
+
+function closeSynergyGuideOverlay() {
+  synergyGuideOverlay?.classList.remove("visible");
+}
+
 function renderWaveBonusSelection() {
   if (!perkChoices) return;
   if (perkHint) perkHint.textContent = buildPerkHintText();
-  perkChoices.classList.toggle("has-four", world.pendingWaveBonuses.length >= 4);
+  const hasFourChoices = world.pendingWaveBonuses.length >= 4;
+  perkChoices.classList.toggle("has-four", hasFourChoices);
+  perkPanel?.classList.toggle("has-four-choices", hasFourChoices);
   renderPerkControls();
   perkChoices.innerHTML = world.pendingWaveBonuses.map((bonus, index) => {
+    const activationHints = getBonusSynergyActivationHints(bonus);
     const synergyHints = getBonusSynergyHints(bonus);
-    const synergyHint = synergyHints.length
-      ? `<div class="perk-synergy-hint">${escapeHtml(t(
-        synergyHints.some((hint) => hint.activates) ? "perk.synergyHintActivates" : "perk.synergyHint",
-        { names: synergyHints.map((hint) => hint.title).join(", ") },
-      ))}</div>`
+    const synergyHint = activationHints.length
+      ? `<div class="perk-synergy-hint perk-synergy-hint-activates">${escapeHtml(t("perk.synergyHintActivates", {
+        names: activationHints.map((hint) => hint.title).join(", "),
+      }))}</div>`
+      : synergyHints.length
+        ? `<div class="perk-synergy-hint">${escapeHtml(t(
+          synergyHints.some((hint) => hint.activates) ? "perk.synergyHintActivates" : "perk.synergyHint",
+          { names: synergyHints.map((hint) => hint.title).join(", ") },
+        ))}</div>`
       : "";
 
     return (
-      `<button class="perk-card rarity-${bonus.rarity}" type="button" data-bonus-id="${bonus.id}" style="--perk-accent:${bonus.color};--perk-border:${bonus.borderColor};--perk-glow:${bonus.glowColor};--perk-delay:${index * 80}ms">`
+      `<button class="perk-card rarity-${bonus.rarity}${activationHints.length ? " synergy-finisher" : ""}" type="button" data-bonus-id="${bonus.id}" style="--perk-accent:${bonus.color};--perk-border:${bonus.borderColor};--perk-glow:${bonus.glowColor};--perk-delay:${index * 80}ms">`
       + `<div class="perk-card-head">`
-      + `<span class="perk-card-tag">${escapeHtml(t("perk.nextWave"))}</span>`
       + `<span class="perk-rarity-badge">${escapeHtml(bonusRarityLabel(bonus))}</span>`
       + `</div>`
       + `<strong>${escapeHtml(bonusTitle(bonus))}</strong>`
@@ -1360,7 +2123,7 @@ function startWaveClearSequence() {
   world.enemyShots = [];
   world.bullets = [];
   world.intermissionTimer = 0;
-  world.banner = null;
+  clearAnnouncements();
   world.waveClearTimer = 1.08;
   world.waveClearPendingPerk = true;
   world.state = "wave_clear";
@@ -1422,7 +2185,7 @@ function startDeathSequence() {
   world.deathSequenceTimer = 2.45;
   world.deathSequenceReadyForClick = false;
   world.deathOverlayAlpha = 0;
-  world.banner = null;
+  clearAnnouncements();
   audio.setMode("menu");
   closeWaveBonusSelection();
   hideWaveClearOverlay();
@@ -1457,15 +2220,9 @@ function confirmDeathSequence() {
   });
   overlayButton.textContent = t("ui.tryAgain");
   if (overlayMetaButton) overlayMetaButton.classList.remove("hidden");
-  showScoreEntry({
-    score: world.score,
-    kills: world.kills,
-    wave: world.wave,
-    creditsEarned: world.runCreditsEarned,
-    creditsTotal: metaState.credits,
-    weapon: player.weapon,
-    synergies: [...world.activeSynergies],
-  });
+  const runEntry = buildRunResultEntry("death");
+  showScoreEntry(runEntry);
+  clearActiveRunCheats();
   overlay.classList.add("visible");
   renderMetaUpgrades();
 }
@@ -1887,6 +2644,39 @@ function angleDelta(a, b) {
   if (delta < -Math.PI) delta += TAU;
   return delta;
 }
+
+function countActiveThreatUnits() {
+  const swarmPacks = new Set();
+  let count = 0;
+
+  for (const foe of world.foes) {
+    if (!foe || foe.hp <= 0) continue;
+
+    if (foe.id === "swarm" && foe.packId) {
+      swarmPacks.add(foe.packId);
+    } else {
+      count += 1;
+    }
+  }
+
+  return count + swarmPacks.size;
+}
+
+function enemiesRemainingForDisplay() {
+  const activeThreats = countActiveThreatUnits();
+
+  if (!world.currentWave || world.state !== "playing") {
+    return activeThreats;
+  }
+
+  const remainingSpawnSlots = Math.max(
+    0,
+    world.currentWave.regularTotal - world.currentWave.regularSpawned,
+  );
+
+  return remainingSpawnSlots + activeThreats;
+}
+
 function layoutX(value) { return value / BASE_WORLD_WIDTH * world.width; }
 function layoutY(value) { return value / BASE_WORLD_HEIGHT * world.height; }
 function layoutW(value) { return value / BASE_WORLD_WIDTH * world.width; }
@@ -2570,7 +3360,11 @@ function spawnGibs(foe) {
       life: rand(0.34, foe.boss ? 0.92 : 0.66),
       size: rand(12, foe.boss ? 26 : 18),
       sizeEnd: rand(24, foe.boss ? 54 : 36),
-      color: foe.kind === "animal" ? "rgba(78, 62, 58, 0.34)" : "rgba(62, 68, 76, 0.44)",
+      color: foe.kind === "animal"
+        ? "rgba(78, 62, 58, 0.34)"
+        : foe.kind === "swarm"
+          ? "rgba(124, 255, 72, 0.26)"
+          : "rgba(62, 68, 76, 0.44)",
       type: "smoke",
       drag: 0.93,
     });
@@ -2588,19 +3382,256 @@ function spawnGibs(foe) {
       life: rand(0.34, foe.boss ? 1.04 : 0.76),
       size: rand(4, foe.boss ? 10 : 7),
       sizeEnd: rand(2, 4),
-      color: foe.kind === "animal" ? "rgba(94, 32, 28, 0.48)" : pick(["rgba(14, 18, 24, 0.68)", "rgba(24, 30, 38, 0.72)", "rgba(40, 52, 64, 0.6)"]),
+      color: foe.kind === "animal"
+        ? "rgba(94, 32, 28, 0.48)"
+        : foe.kind === "swarm"
+          ? pick(["rgba(91, 255, 55, 0.42)", "rgba(156, 255, 47, 0.36)", "rgba(34, 54, 24, 0.5)"])
+          : pick(["rgba(14, 18, 24, 0.68)", "rgba(24, 30, 38, 0.72)", "rgba(40, 52, 64, 0.6)"]),
       type: "oil",
       drag: 0.94,
     });
   }
 }
 
+function activateNextAnnouncement() {
+  if (world.banner || world.synergyToast || world.bossWarning) return;
+  const next = world.bannerQueue.shift();
+  if (!next) return;
+
+  if (next.kind === "synergy") {
+    world.synergyToast = {
+      id: next.id,
+      title: next.title,
+      subtitle: next.subtitle,
+      timer: next.duration,
+      total: next.duration,
+      accent: next.accent,
+    };
+    return;
+  }
+
+  if (next.kind === "boss") {
+    world.bossWarning = {
+      title: next.title,
+      subtitle: next.subtitle,
+      bossName: next.bossName,
+      timer: next.duration,
+      total: next.duration,
+      accent: next.accent,
+    };
+    return;
+  }
+
+  world.banner = {
+    title: next.title,
+    subtitle: next.subtitle,
+    timer: next.duration,
+    total: next.duration,
+    accent: next.accent,
+  };
+}
+
+function queueAnnouncement(entry) {
+  world.bannerQueue.push(entry);
+  activateNextAnnouncement();
+}
+
+function clearAnnouncements() {
+  world.banner = null;
+  world.bannerQueue = [];
+  world.synergyToast = null;
+  world.bossWarning = null;
+  world.pendingSynergyAnnouncements = [];
+}
+
+function syncCheatToastDom() {
+  if (!cheatToastRoot) return;
+
+  if (!world.cheatToast || world.cheatToastTimer <= 0) {
+    cheatToastRoot.classList.remove("visible");
+    cheatToastRoot.textContent = "";
+    return;
+  }
+
+  cheatToastRoot.textContent = world.cheatToast;
+  cheatToastRoot.classList.add("visible");
+}
+
+function showCheatToast(message) {
+  world.cheatToast = message;
+  world.cheatToastTimer = 2.4;
+  syncCheatToastDom();
+
+  if (cheatToastTimeout) window.clearTimeout(cheatToastTimeout);
+  cheatToastTimeout = window.setTimeout(() => {
+    if (world.cheatToast !== message) return;
+    world.cheatToast = null;
+    world.cheatToastTimer = 0;
+    syncCheatToastDom();
+  }, 2400);
+}
+
 function banner(title, subtitle, duration, accent = "#ff5b2e") {
-  world.banner = { title, subtitle, timer: duration, total: duration, accent };
+  queueAnnouncement({
+    kind: "banner",
+    title,
+    subtitle,
+    duration,
+    accent,
+  });
+}
+
+function queueBossDefeated(bossName) {
+  queueAnnouncement({
+    kind: "banner",
+    title: t("bossDefeated.title"),
+    subtitle: bossName || t("boss.unknown"),
+    duration: 2.4,
+    accent: "#ff9d43",
+  });
 }
 
 function addScreenShake(amount) {
   world.screenShake = Math.max(world.screenShake, amount);
+}
+
+function defaultActiveCheats() {
+  return {
+    godMode: false,
+    forceTechpriest: false,
+    armoryDrop: false,
+    swarmHell: false,
+  };
+}
+
+function defaultNextRunCheats() {
+  return {
+    godMode: false,
+    forceTechpriest: false,
+    armoryDrop: false,
+    swarmHell: false,
+  };
+}
+
+function markRunCheated() {
+  if (!world.cheatsUsed) {
+    restoreRunAchievementSnapshot();
+  }
+
+  world.cheatsUsed = true;
+
+  if (world.runStatsCounted) {
+    metaState.totalRuns = Math.max(0, (metaState.totalRuns || 0) - 1);
+    world.runStatsCounted = false;
+    saveMetaProgress();
+    renderMetaUpgrades();
+  }
+}
+
+function applyNextRunCheats() {
+  const next = world.nextRunCheats || {};
+
+  world.activeCheats = {
+    godMode: Boolean(next.godMode),
+    forceTechpriest: Boolean(next.forceTechpriest),
+    armoryDrop: Boolean(next.armoryDrop),
+    swarmHell: Boolean(next.swarmHell),
+  };
+
+  world.cheatsUsed = false;
+  if (
+    world.activeCheats.godMode
+    || world.activeCheats.forceTechpriest
+    || world.activeCheats.armoryDrop
+    || world.activeCheats.swarmHell
+  ) {
+    markRunCheated();
+  }
+
+  world.nextRunCheats = defaultNextRunCheats();
+}
+
+function clearActiveRunCheats() {
+  world.cheatsUsed = false;
+  world.activeCheats = defaultActiveCheats();
+  world.runStatsCounted = false;
+}
+
+function addCheatCredits(amount = 1000) {
+  const credits = Math.max(0, Math.floor(Number(amount) || 0));
+  if (!credits) return;
+
+  metaState.credits += credits;
+  metaState.totalEarnedCredits += credits;
+  saveMetaProgress();
+  renderMetaUpgrades();
+}
+
+function spawnArmoryCheatPickups() {
+  if (!world.activeCheats?.armoryDrop) return;
+
+  const weaponIds = ["shotgun", "smg", "rail"];
+  const spacing = 58;
+  const startX = player.x - ((weaponIds.length - 1) * spacing) / 2;
+  const y = player.y + 82;
+
+  for (let i = 0; i < weaponIds.length; i += 1) {
+    const weaponId = weaponIds[i];
+    if (!weapons[weaponId]) continue;
+
+    world.pickups.push({
+      x: startX + i * spacing,
+      y,
+      radius: 13,
+      type: `weapon-${weaponId}`,
+      life: 22,
+      pulse: Math.random() * TAU,
+    });
+  }
+
+  world.activeCheats.armoryDrop = false;
+}
+
+function cheatKillAll() {
+  markRunCheated();
+
+  for (const foe of world.foes || []) {
+    foe.hp = 0;
+    foe.hitFlash = Math.max(foe.hitFlash || 0, 0.25);
+  }
+
+  showCheatToast("PURGE PROTOCOL / KILLALL");
+}
+
+function cheatHealMe() {
+  markRunCheated();
+  player.health = player.maxHealth;
+  player.hitFlash = 0.18;
+  syncHud();
+  showCheatToast("MEDICAL OVERRIDE / HEALME");
+}
+
+function cheatNuke() {
+  markRunCheated();
+
+  const radius = 520;
+  const damage = 9999;
+
+  pushBlastGlow(player.x, player.y, radius, "rgba(116, 255, 77, 0.28)", 0.45);
+  burst(player.x, player.y, "#9cff2f", 26, 1.2);
+  addScreenShake(0.45);
+
+  for (const foe of world.foes || []) {
+    const distance = Math.hypot(foe.x - player.x, foe.y - player.y);
+    if (distance > radius) continue;
+
+    applyDamageToFoe(foe, damage * (1 - (distance / radius) * 0.35), {
+      source: "cheat_nuke",
+    });
+    foe.hitFlash = Math.max(foe.hitFlash || 0, 0.35);
+  }
+
+  showCheatToast("NUCLEAR PURGE / NUKE");
 }
 
 function syncPointerWorld() {
@@ -2616,6 +3647,38 @@ function updateCamera() {
   syncPointerWorld();
 }
 
+function computeNormalViewportSize() {
+  const aspect = DEFAULT_CANVAS_WIDTH / DEFAULT_CANVAS_HEIGHT;
+  const safeWidth = Math.max(760, window.innerWidth - 24);
+  const safeHeight = Math.max(460, window.innerHeight - 28);
+
+  let width = Math.min(DEFAULT_CANVAS_WIDTH, safeWidth);
+  let height = width / aspect;
+
+  if (height > Math.min(DEFAULT_CANVAS_HEIGHT, safeHeight)) {
+    height = Math.min(DEFAULT_CANVAS_HEIGHT, safeHeight);
+    width = height * aspect;
+  }
+
+  return {
+    width: Math.round(width),
+    height: Math.round(height),
+  };
+}
+
+function applyGameViewportSize(width, height) {
+  canvas.width = width;
+  canvas.height = height;
+
+  fullscreenRoot?.style.setProperty("--game-viewport-width", `${width}px`);
+  fullscreenRoot?.style.setProperty("--game-viewport-height", `${height}px`);
+
+  world.camera.width = canvas.width;
+  world.camera.height = canvas.height;
+
+  updateCamera();
+}
+
 function resizeGameViewportForFullscreen() {
   const fullscreen = document.fullscreenElement === fullscreenRoot;
 
@@ -2624,22 +3687,25 @@ function resizeGameViewportForFullscreen() {
     const nextWidth = Math.max(DEFAULT_CANVAS_WIDTH, Math.floor(rect?.width || window.innerWidth));
     const nextHeight = Math.max(DEFAULT_CANVAS_HEIGHT, Math.floor(rect?.height || window.innerHeight));
 
-    canvas.width = nextWidth;
-    canvas.height = nextHeight;
     world.isGameFullscreen = true;
     world.canvasUiScale = 0.78;
     world.waveBannerScale = 1.02;
-  } else {
-    canvas.width = DEFAULT_CANVAS_WIDTH;
-    canvas.height = DEFAULT_CANVAS_HEIGHT;
-    world.isGameFullscreen = false;
-    world.canvasUiScale = 1;
-    world.waveBannerScale = 1;
+
+    applyGameViewportSize(nextWidth, nextHeight);
+    return;
   }
 
-  world.camera.width = canvas.width;
-  world.camera.height = canvas.height;
-  updateCamera();
+  const normalSize = computeNormalViewportSize();
+
+  world.isGameFullscreen = false;
+  world.canvasUiScale = normalSize.width < DEFAULT_CANVAS_WIDTH || normalSize.height < DEFAULT_CANVAS_HEIGHT
+    ? 0.88
+    : 1;
+  world.waveBannerScale = normalSize.width < DEFAULT_CANVAS_WIDTH || normalSize.height < DEFAULT_CANVAS_HEIGHT
+    ? 0.94
+    : 1;
+
+  applyGameViewportSize(normalSize.width, normalSize.height);
 }
 
 function moveVector() {
@@ -2740,7 +3806,18 @@ function renderMetaUpgrades() {
   if (metaTeaserCredits) metaTeaserCredits.textContent = metaState.credits;
   renderMetaStats();
   if (!metaUpgradeList) return;
-  metaUpgradeList.innerHTML = Object.values(metaUpgrades).map((upgrade) => {
+  if (metaUpgradeTabs) {
+    metaUpgradeTabs.querySelectorAll("[data-meta-tab]").forEach((button) => {
+      const isActive = button.dataset.metaTab === activeMetaUpgradeTab;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+  }
+  const visibleUpgrades = Object.values(metaUpgrades).filter((upgrade) => {
+    const category = upgrade.category || "general";
+    return category === activeMetaUpgradeTab;
+  });
+  metaUpgradeList.innerHTML = visibleUpgrades.map((upgrade) => {
     const level = getMetaUpgradeLevel(upgrade.id);
     const cost = getMetaUpgradeCost(upgrade.id);
     const maxed = level >= upgrade.maxLevel;
@@ -2817,7 +3894,7 @@ function abortRunToSummary() {
   world.pointer.down = false;
   world.enemyShots = [];
   world.bullets = [];
-  world.banner = null;
+  clearAnnouncements();
 
   audio.setMode("menu");
   closeWaveBonusSelection();
@@ -2836,15 +3913,9 @@ function abortRunToSummary() {
   overlayButton.textContent = t("ui.tryAgain");
   if (overlayMetaButton) overlayMetaButton.classList.remove("hidden");
 
-  showScoreEntry({
-    score: world.score,
-    kills: world.kills,
-    wave: world.wave,
-    creditsEarned: world.runCreditsEarned,
-    creditsTotal: metaState.credits,
-    weapon: player.weapon,
-    synergies: [...world.activeSynergies],
-  });
+  const runEntry = buildRunResultEntry("aborted");
+  showScoreEntry(runEntry);
+  clearActiveRunCheats();
 
   overlay.classList.add("visible");
   renderMetaUpgrades();
@@ -2860,7 +3931,7 @@ function returnToMainMenuFromRun() {
   world.pointer.down = false;
   world.enemyShots = [];
   world.bullets = [];
-  world.banner = null;
+  clearAnnouncements();
 
   closeWaveBonusSelection();
   hideWaveClearOverlay();
@@ -2871,6 +3942,7 @@ function returnToMainMenuFromRun() {
   overlay.classList.remove("visible");
 
   audio.setMode("menu");
+  clearActiveRunCheats();
   showMainMenu();
   renderMetaUpgrades();
 }
@@ -2884,6 +3956,7 @@ function returnToMainMenuFromResults() {
   world.pointer.down = false;
   world.resultOverlayKind = null;
   audio.setMode("menu");
+  clearActiveRunCheats();
   showMainMenu();
   renderMetaUpgrades();
 }
@@ -2908,9 +3981,11 @@ function syncMainMenuAudioState() {
 }
 
 function showMainMenu() {
+  clearActiveRunCheats();
   world.state = "menu";
   forceClosePauseMenu();
   world.resultOverlayKind = null;
+  clearAnnouncements();
   mainMenuOverlay?.classList.add("visible");
   document.body.classList.add("has-main-menu");
   audio.setMode("menu");
@@ -2966,6 +4041,15 @@ function getMetaDamageTakenMultiplier() { return 1 - getMetaUpgradeLevel("damage
 function getMetaPickupLuckBonus() { return getMetaUpgradeLevel("pickup_luck") * 0.06; }
 function getMetaWeaponDamageMultiplier() { return 1 + getMetaUpgradeLevel("weapon_mastery") * 0.05; }
 function getMetaExecutionBonusMultiplier() { return 1 + getMetaUpgradeLevel("crit_protocol") * 0.05; }
+function getMetaArmoryDamageMultiplier() { return 1 + getMetaUpgradeLevel("armory_damage") * 0.04; }
+function getMetaArmoryFireRateMultiplier() { return 1 - getMetaUpgradeLevel("armory_fire_rate") * 0.03; }
+function getMetaArmoryProjectileSpeedMultiplier() { return 1 + getMetaUpgradeLevel("armory_projectile_speed") * 0.04; }
+function getMetaArmoryRangeMultiplier() { return 1 + getMetaUpgradeLevel("armory_range") * 0.06; }
+function getMetaArmorySpreadMultiplier() { return 1 - getMetaUpgradeLevel("armory_stability") * 0.05; }
+function getMetaArmoryPierceBonus(weaponId) {
+  if (weaponId === "shotgun") return 0;
+  return getMetaUpgradeLevel("armory_pierce");
+}
 function getMetaHealingMultiplier() { return 1 + getMetaUpgradeLevel("recovery") * 0.1; }
 function getMetaPerkBiasFactor() { return 1 + getMetaUpgradeLevel("perk_bias") * 0.08; }
 function getMetaRerollCapacity() { return getMetaUpgradeLevel("reroll_protocol"); }
@@ -2984,6 +4068,12 @@ function calculateRunCredits() {
 
 function finalizeRunMetaProgress() {
   if (world.runMetaAwarded) return;
+  if (world.cheatsUsed) {
+    world.runMetaAwarded = true;
+    world.runCreditsEarned = 0;
+    renderMetaUpgrades();
+    return;
+  }
   const earned = calculateRunCredits();
   world.runMetaAwarded = true;
   world.runCreditsEarned = earned;
@@ -2996,6 +4086,37 @@ function finalizeRunMetaProgress() {
   renderMetaUpgrades();
 }
 
+function buildRunResultEntry(endReason) {
+  world.runEndReason = endReason;
+  return {
+    score: world.score,
+    kills: world.kills,
+    wave: world.wave,
+    creditsEarned: world.runCreditsEarned,
+    creditsTotal: metaState.credits,
+    weapon: player.weapon,
+    weaponsUsed: Array.isArray(world.weaponsUsed) ? [...world.weaponsUsed] : [player.weapon],
+    synergies: [...world.activeSynergies],
+    duration: Math.round(world.runDuration || 0),
+    maxCombo: Number((world.maxCombo || world.combo || 1).toFixed(1)),
+    endReason,
+    cheatsUsed: Boolean(world.cheatsUsed),
+  };
+}
+
+function formatRunDuration(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds) || 0));
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
+}
+
+function runEndReasonLabel(reason) {
+  if (reason === "aborted") return t("summary.resultAborted");
+  if (reason === "victory") return t("summary.resultVictory");
+  return t("summary.resultDeath");
+}
+
 function renderRunSummary(entry = null) {
   if (!runSummaryPanel) return;
   if (!entry) {
@@ -3003,11 +4124,29 @@ function renderRunSummary(entry = null) {
     return;
   }
   runSummaryPanel.classList.remove("hidden");
+  const duration = formatRunDuration(entry.duration);
+  const maxCombo = Number(entry.maxCombo || 1).toFixed(1);
+  const weapon = entry.weapon ? weaponLabel(entry.weapon) : t("leaderboard.unknown");
+  const synergies = Array.isArray(entry.synergies) ? entry.synergies : [];
+
+  if (runSummaryResult) runSummaryResult.textContent = runEndReasonLabel(entry.endReason);
+  if (runSummaryDuration) runSummaryDuration.textContent = duration;
   if (runSummaryWave) runSummaryWave.textContent = entry.wave;
   if (runSummaryKills) runSummaryKills.textContent = entry.kills;
   if (runSummaryScore) runSummaryScore.textContent = entry.score;
+  if (runSummaryMaxCombo) runSummaryMaxCombo.textContent = `x${maxCombo}`;
+  if (runSummaryWeapon) runSummaryWeapon.textContent = weapon;
   if (runSummaryCreditsEarned) runSummaryCreditsEarned.textContent = entry.creditsEarned;
   if (runSummaryCreditsTotal) runSummaryCreditsTotal.textContent = entry.creditsTotal;
+
+  if (runSummarySynergies) {
+    const cheatNotice = entry.cheatsUsed
+      ? `<span class="summary-cheat-warning">${escapeHtml(t("run.cheatsUsed"))}</span>`
+      : "";
+    runSummarySynergies.innerHTML = synergies.length
+      ? `${cheatNotice}${synergies.map((id) => `<span class="summary-synergy-chip">${escapeHtml(synergyTitle(id))}</span>`).join("")}`
+      : `${cheatNotice}<span class="summary-synergy-empty">${escapeHtml(t("leaderboard.none"))}</span>`;
+  }
 }
 
 function currentWeapon() {
@@ -3021,15 +4160,26 @@ function currentWeapon() {
     ...base,
     label: weaponLabel(base.id),
     pellets,
-    damage: base.damage * getMetaWeaponDamageMultiplier() * mods.globalDamageMul * (base.id === "rail" ? mods.plasmaDamageMul : 1),
-    speed: base.speed * mods.projectileSpeedMul,
-    spread: base.spread * mods.spreadMul * (base.id === "smg" ? mods.smgSpreadMul : 1),
-    pierce,
+    damage: base.damage
+      * getMetaWeaponDamageMultiplier()
+      * getMetaArmoryDamageMultiplier()
+      * mods.globalDamageMul
+      * (base.id === "rail" ? mods.plasmaDamageMul : 1),
+    speed: base.speed
+      * getMetaArmoryProjectileSpeedMultiplier()
+      * mods.projectileSpeedMul,
+    spread: base.spread
+      * getMetaArmorySpreadMultiplier()
+      * mods.spreadMul
+      * (base.id === "smg" ? mods.smgSpreadMul : 1),
+    pierce: pierce + getMetaArmoryPierceBonus(base.id),
+    rangeMul: getMetaArmoryRangeMultiplier(),
   };
 }
 function fireRate() {
   const weapon = currentWeapon();
   return weapon.fireRate
+    * getMetaArmoryFireRateMultiplier()
     * (world.buffs.rapid > 0 ? 0.55 : 1)
     * world.waveBonusModifiers.fireRateMul
     * (weapon.id === "pistol" ? world.waveBonusModifiers.pistolFireRateMul : 1)
@@ -3084,6 +4234,12 @@ function loadLeaderboard() {
         creditsTotal: Number(entry.creditsTotal) || 0,
         weapon: typeof entry.weapon === "string" ? entry.weapon : "",
         synergies: Array.isArray(entry.synergies) ? entry.synergies.filter((id) => typeof id === "string") : [],
+        duration: Number(entry.duration) || 0,
+        maxCombo: Number(entry.maxCombo) || 1,
+        endReason: typeof entry.endReason === "string" ? entry.endReason : "death",
+        weaponsUsed: Array.isArray(entry.weaponsUsed)
+          ? entry.weaponsUsed.filter((id) => typeof id === "string")
+          : (entry.weapon ? [entry.weapon] : []),
         timestamp: Number(entry.timestamp) || 0,
       })));
   } catch {
@@ -3104,7 +4260,12 @@ function renderLeaderboardDetails(entry, index) {
   if (!leaderboardDetails) return;
 
   if (!entry) {
-    leaderboardDetails.innerHTML = `<p class="leaderboard-details-empty">${escapeHtml(t("leaderboard.selectEntry"))}</p>`;
+    leaderboardDetails.innerHTML = `
+      <div class="leaderboard-empty-report">
+        <div class="leaderboard-empty-icon">◆</div>
+        <p>${escapeHtml(t("leaderboard.selectEntry"))}</p>
+      </div>
+    `;
     return;
   }
 
@@ -3113,26 +4274,54 @@ function renderLeaderboardDetails(entry, index) {
   const date = formatLeaderboardDate(entry.timestamp);
   const weapon = entry.weapon ? weaponLabel(entry.weapon) : t("leaderboard.unknown");
   const creditsEarned = Number(entry.creditsEarned) || 0;
-  const synergyNames = Array.isArray(entry.synergies) && entry.synergies.length
-    ? entry.synergies.map((id) => synergyTitle(id)).join(", ")
-    : t("leaderboard.none");
+  const duration = formatRunDuration(entry.duration);
+  const maxCombo = Number(entry.maxCombo || 1).toFixed(1);
+  const result = runEndReasonLabel(entry.endReason);
+  const rawWeaponsUsed = Array.isArray(entry.weaponsUsed) && entry.weaponsUsed.length
+    ? entry.weaponsUsed.filter((id) => typeof id === "string")
+    : (entry.weapon ? [entry.weapon] : []);
+  const uniqueWeaponsUsed = [...new Set(rawWeaponsUsed)];
+  const weaponsUsedLabels = uniqueWeaponsUsed.map((id) => weaponLabel(id));
+  const hasDistinctWeaponsList = uniqueWeaponsUsed.length > 1
+    || (uniqueWeaponsUsed.length === 1 && entry.weapon && uniqueWeaponsUsed[0] !== entry.weapon);
+  const weaponsUsed = weaponsUsedLabels.join(", ");
+  const synergyChips = Array.isArray(entry.synergies) && entry.synergies.length
+    ? entry.synergies.map((id) => `<span class="leaderboard-synergy-chip">${escapeHtml(synergyTitle(id))}</span>`).join("")
+    : `<span class="leaderboard-synergy-empty">${escapeHtml(t("leaderboard.none"))}</span>`;
 
   leaderboardDetails.innerHTML = `
-    <div class="leaderboard-detail-card">
-      <span>${escapeHtml(t("leaderboard.rank"))}</span>
-      <strong>#${rank}</strong>
+    <div class="leaderboard-report-head">
+      <span class="leaderboard-report-kicker">${escapeHtml(t("leaderboard.reportTitle"))}</span>
+      <div class="leaderboard-report-rank${rank <= 3 ? ` top-${rank}` : ""}">
+        #${rank}
+      </div>
     </div>
-    <div class="leaderboard-detail-main">
+
+    <div class="leaderboard-detail-main leaderboard-report-main">
       <h3>${escapeHtml(name)}</h3>
       <p>${escapeHtml(t("leaderboard.recordedAt", { date }))}</p>
     </div>
+
+    <div class="leaderboard-report-score">
+      <span>${escapeHtml(t("summary.score"))}</span>
+      <strong>${entry.score}</strong>
+    </div>
+
     <div class="leaderboard-detail-grid">
-      <div><span>${escapeHtml(t("summary.score"))}</span><strong>${entry.score}</strong></div>
+      <div><span>${escapeHtml(t("summary.result"))}</span><strong>${escapeHtml(result)}</strong></div>
       <div><span>${escapeHtml(t("summary.wave"))}</span><strong>${entry.wave}</strong></div>
       <div><span>${escapeHtml(t("summary.kills"))}</span><strong>${entry.kills}</strong></div>
+      <div><span>${escapeHtml(t("summary.duration"))}</span><strong>${escapeHtml(duration)}</strong></div>
+      <div><span>${escapeHtml(t("summary.maxCombo"))}</span><strong>x${maxCombo}</strong></div>
       <div><span>${escapeHtml(t("summary.creditsEarned"))}</span><strong>${creditsEarned}</strong></div>
       <div><span>${escapeHtml(t("ui.weapon"))}</span><strong>${escapeHtml(weapon)}</strong></div>
-      <div><span>${escapeHtml(t("leaderboard.synergies"))}</span><strong>${escapeHtml(synergyNames)}</strong></div>
+      ${hasDistinctWeaponsList
+        ? `<div><span>${escapeHtml(t("leaderboard.weaponsUsed"))}</span><strong>${escapeHtml(weaponsUsed)}</strong></div>`
+        : ""}
+    </div>
+    <div class="leaderboard-synergy-block">
+      <span>${escapeHtml(t("leaderboard.synergies"))}</span>
+      <div class="leaderboard-synergy-list">${synergyChips}</div>
     </div>
   `;
 }
@@ -3171,13 +4360,23 @@ function renderLeaderboard() {
 
   leaderboardFullBody.innerHTML = entries.map((entry, index) => {
     const selected = world.selectedLeaderboardIndex === index;
+    const synergyCount = Array.isArray(entry.synergies) ? entry.synergies.length : 0;
+    const rank = index + 1;
+    const rankClass = rank === 1
+      ? " rank-gold"
+      : rank === 2
+        ? " rank-silver"
+        : rank === 3
+          ? " rank-bronze"
+          : "";
     return (
-      `<button class="leaderboard-full-row leaderboard-full-entry${selected ? " selected" : ""}" type="button" data-leaderboard-index="${index}">`
-      + `<span>${index + 1}</span>`
+      `<button class="leaderboard-full-row leaderboard-full-entry${selected ? " selected" : ""}${rankClass}" type="button" data-leaderboard-index="${index}">`
+      + `<span class="leaderboard-rank"><span class="leaderboard-rank-badge">${rank}</span></span>`
       + `<span class="leaderboard-name">${escapeHtml(displayLeaderboardName(entry.name))}</span>`
       + `<span>${entry.score}</span>`
       + `<span>${entry.kills}</span>`
       + `<span>${entry.wave}</span>`
+      + `<span>${synergyCount}</span>`
       + `<span>${escapeHtml(formatLeaderboardDate(entry.timestamp))}</span>`
       + `</button>`
     );
@@ -3207,6 +4406,15 @@ function closeLeaderboardOverlay() {
 }
 
 function showScoreEntry(entry) {
+  if (entry?.cheatsUsed) {
+    world.pendingLeaderboardEntry = null;
+    scoreEntryPanel.classList.add("hidden");
+    playerNameInput.value = localStorage.getItem(LEADERBOARD_NAME_KEY) || "";
+    renderRunSummary(entry);
+    saveScoreStatus.textContent = t("run.cheatsUsed");
+    return;
+  }
+
   world.pendingLeaderboardEntry = entry;
   scoreEntryPanel.classList.remove("hidden");
   playerNameInput.value = localStorage.getItem(LEADERBOARD_NAME_KEY) || "";
@@ -3223,6 +4431,11 @@ function hideScoreEntry() {
 
 function saveLeaderboardEntry() {
   if (!world.pendingLeaderboardEntry) return;
+  if (world.pendingLeaderboardEntry.cheatsUsed) {
+    world.pendingLeaderboardEntry = null;
+    saveScoreStatus.textContent = t("run.cheatsUsed");
+    return;
+  }
   const name = (playerNameInput.value || "").trim();
   localStorage.setItem(LEADERBOARD_NAME_KEY, name);
   saveLeaderboard([
@@ -3371,9 +4584,16 @@ function refreshLocalizedUi() {
     overlayButton.textContent = t("ui.tryAgain");
     if (world.pendingLeaderboardEntry) {
       saveScoreStatus.textContent = t("leaderboard.scoreStatus", world.pendingLeaderboardEntry);
+      renderRunSummary(world.pendingLeaderboardEntry);
     }
   }
   if (world.state === "perk_select") renderWaveBonusSelection();
+  if (synergyGuideOverlay?.classList.contains("visible")) {
+    renderSynergyGuide();
+  }
+  if (achievementsOverlay?.classList.contains("visible")) {
+    renderAchievementsOverlay();
+  }
   if (world.synergyToast) {
     world.synergyToast.title = synergyTitle(world.synergyToast.id);
     world.synergyToast.subtitle = t("synergy.toast");
@@ -3537,6 +4757,7 @@ function menuOverlay() {
 }
 
 function resetGame() {
+  clearActiveRunCheats();
   world.bullets = [];
   world.enemyShots = [];
   world.foes = [];
@@ -3559,9 +4780,21 @@ function resetGame() {
   world.combo = 1;
   world.comboTimer = 0;
   world.wave = 0;
+  world.techpriestEligibleMisses = 0;
+  world.techpriestSpawnedThisRun = 0;
   world.kills = 0;
   world.runCreditsEarned = 0;
+  world.runDuration = 0;
+  world.maxCombo = 1;
+  world.weaponsUsed = ["pistol"];
+  world.runEndReason = "";
   world.runMetaAwarded = false;
+  world.runStatsCounted = false;
+  world.runSwarmKills = 0;
+  world.runBarrelsDestroyed = 0;
+  world.runSynergiesActivated = 0;
+  world.runClearedWaves = 0;
+  world.damageTakenThisWave = 0;
   world.stateBeforePause = null;
   world.pauseOpenedAt = 0;
   world.resultOverlayKind = null;
@@ -3573,7 +4806,7 @@ function resetGame() {
   world.shakeRot = 0;
   world.currentWave = null;
   world.intermissionTimer = 0;
-  world.banner = null;
+  clearAnnouncements();
   world.buffs = { rapid: 0, speed: 0, armor: 0, drone: 0 };
   world.activeWaveBonus = null;
   world.pendingWaveBonuses = [];
@@ -3588,7 +4821,6 @@ function resetGame() {
   world.synergyCounters = {
     bulletStormShots: 0,
   };
-  world.synergyToast = null;
   world.deathSequenceTimer = 0;
   world.deathSequenceReadyForClick = false;
   world.deathOverlayAlpha = 0;
@@ -3598,6 +4830,8 @@ function resetGame() {
   player.maxHealth = player.baseMaxHealth + getMetaMaxHealthBonus();
   player.health = player.maxHealth;
   player.weapon = "pistol";
+  resetRunAchievementStats();
+  world.achievementStateSnapshot = cloneAchievementState();
   player.fireCooldown = 0;
   player.dashCooldown = 0;
   player.dashDuration = 0;
@@ -3615,6 +4849,7 @@ function resetGame() {
   hideWaveClearOverlay();
   hideDeathSequenceOverlay();
   closeMetaOverlay();
+  closeAchievementsOverlay();
   generateTerrain();
   generateSolids();
   updateCamera();
@@ -3630,8 +4865,13 @@ async function startGame() {
   audio.resetBattlePlaylist();
   audio.setMode("battle");
   resetGame();
-  metaState.totalRuns += 1;
-  saveMetaProgress();
+  applyNextRunCheats();
+  spawnArmoryCheatPickups();
+  if (!world.cheatsUsed) {
+    metaState.totalRuns += 1;
+    world.runStatsCounted = true;
+    saveMetaProgress();
+  }
   hideScoreEntry();
   world.state = "intermission";
   world.intermissionTimer = 2.6;
@@ -3641,6 +4881,7 @@ async function startGame() {
   hideDeathSequenceOverlay();
   closeMetaOverlay();
   closeLeaderboardOverlay();
+  closeAchievementsOverlay();
   closeControlsOverlay();
   renderMetaUpgrades();
 }
@@ -3665,7 +4906,10 @@ function maybePickup(x, y, guaranteed = false) {
 
 function awardKill(foe) {
   world.kills += 1;
-  world.combo = Math.min(6, Number((world.combo + (foe.boss ? 0.9 : 0.2)).toFixed(1)));
+  trackEnemyKilledForAchievements(foe);
+  const comboGain = foe.comboGain ?? (foe.boss ? 0.9 : 0.2);
+  world.combo = Math.min(6, Number((world.combo + comboGain).toFixed(2)));
+  world.maxCombo = Math.max(world.maxCombo || 1, world.combo);
   world.comboTimer = 4.8;
   world.score += Math.round(foe.reward * world.combo);
   if (world.waveBonusModifiers.killHealChance > 0 && Math.random() < world.waveBonusModifiers.killHealChance) {
@@ -3683,12 +4927,36 @@ function awardKill(foe) {
     maybePickup(foe.x - 20, foe.y, true);
     maybePickup(foe.x + 24, foe.y + 8, true);
     world.pickups.push({ x: foe.x, y: foe.y - 18, radius: 16, type: `weapon-${pick(["smg", "shotgun", "rail"])}`, life: 18, pulse: Math.random() * TAU });
-    banner(t("banner.bossDestroyed.title"), t("banner.bossDestroyed.subtitle"), 2.2, "#ff2f6d");
+    queueBossDefeated(bossDisplayName(foe));
     addScreenShake(0.4);
   } else {
-    maybePickup(foe.x, foe.y);
+    if (foe.id === "techpriest") {
+      maybePickup(foe.x, foe.y, true);
+
+      if (Math.random() < 0.65) {
+        maybePickup(foe.x + rand(-18, 18), foe.y + rand(-18, 18), true);
+      }
+
+      if (world.wave >= 5 && Math.random() < 0.35) {
+        world.pickups.push({
+          x: foe.x + rand(-24, 24),
+          y: foe.y + rand(-24, 24),
+          radius: 13,
+          type: `weapon-${pick(["smg", "shotgun", "rail"])}`,
+          life: 16,
+          pulse: Math.random() * TAU,
+        });
+      }
+
+      addScreenShake(0.16);
+    }
+
+    const pickupChanceMul = foe.pickupChanceMul ?? 1;
+    if (Math.random() < pickupChanceMul) {
+      maybePickup(foe.x, foe.y);
+    }
     if (hasSynergy("scavenger_loop")) {
-      if (Math.random() < 0.08) {
+      if (Math.random() < 0.08 * pickupChanceMul) {
         maybePickup(foe.x + rand(-8, 8), foe.y + rand(-8, 8), true);
       }
       if (Math.random() < 0.12) {
@@ -3702,6 +4970,7 @@ function awardKill(foe) {
 }
 
 function damagePlayer(amount, options = {}) {
+  if (world.activeCheats?.godMode) return false;
   if (player.dashDuration > 0 || player.invulnTimer > 0) return;
   const actual = (world.buffs.armor > 0 ? amount * 0.62 : amount)
     * world.waveBonusModifiers.incomingDamageMul
@@ -3720,6 +4989,7 @@ function damagePlayer(amount, options = {}) {
     return;
   }
   player.health -= actual;
+  trackPlayerDamagedForAchievements(actual);
   player.hitFlash = 0.36;
   if (world.buffs.armor > 0) player.armorFlash = 0.22;
   if (world.waveBonusModifiers.traumaGel) player.traumaArmorTimer = 1.9;
@@ -3735,6 +5005,37 @@ function damagePlayer(amount, options = {}) {
     syncHud();
     endGame();
   }
+}
+
+function applyDamageToFoe(foe, amount, options = {}) {
+  if (!foe || foe.hp <= 0 || amount <= 0) return 0;
+
+  let damage = amount;
+
+  if (foe.id === "techpriest") {
+    if ((foe.shieldHp || 0) > 0) {
+      const absorbed = Math.min(foe.shieldHp, damage);
+      foe.shieldHp -= absorbed;
+      foe.shieldFlash = 0.18;
+      damage -= absorbed;
+
+      if (foe.shieldHp <= 0) {
+        foe.shieldHp = 0;
+        foe.shieldBreakTimer = 0.75;
+        foe.slowTimer = Math.max(foe.slowTimer || 0, 0.65);
+        burst(foe.x, foe.y, "#8ef3ff", 10, 0.9);
+        pushBlastGlow(foe.x, foe.y, 120, "rgba(142, 243, 255, 0.32)", 0.36);
+        addScreenShake(0.12);
+      }
+
+      if (damage <= 0) return 0;
+    }
+
+    damage *= 1 - (foe.armorReduction || 0);
+  }
+
+  foe.hp -= damage;
+  return damage;
 }
 
 function updateParticles(dt) {
@@ -3824,6 +5125,8 @@ function createHunterDroneSwarm() {
       beamAlpha: 0,
       beamJitter: 0,
       target: null,
+      lastTarget: null,
+      retargetCooldown: rand(0.04, 0.12),
       fireOffset: rand(0, 0.18),
     }
   ));
@@ -3863,6 +5166,12 @@ function findHunterDroneTarget(drone, assignedTargets, rangeLimit = 520) {
   return freeTarget || fallbackTarget;
 }
 
+function isValidHunterDroneTarget(target, drone, rangeLimit = 520) {
+  if (!target || target.hp <= 0) return false;
+  const distance = Math.hypot(target.x - drone.x, target.y - drone.y);
+  return distance < rangeLimit;
+}
+
 function updateHunterDrone(dt) {
   const drones = ensureHunterDrone();
   if (!drones.length) return;
@@ -3882,6 +5191,7 @@ function updateHunterDrone(dt) {
     const targetY = player.y + Math.sin(orbitAngle) * 48 - 24 + drone.bob;
     drone.x += (targetX - drone.x) * Math.min(1, dt * 9.2);
     drone.y += (targetY - drone.y) * Math.min(1, dt * 9.2);
+    drone.retargetCooldown = Math.max(0, (drone.retargetCooldown || 0) - dt);
 
     if (Math.random() > 0.68) {
       for (const side of [-1, 1]) {
@@ -3900,16 +5210,35 @@ function updateHunterDrone(dt) {
       }
     }
 
-    const target = findHunterDroneTarget(drone, assignedTargets);
+    let target = null;
+
+    if (isValidHunterDroneTarget(drone.target, drone)) {
+      target = drone.target;
+    } else {
+      if (drone.target && drone.target.hp <= 0) {
+        drone.lastTarget = drone.target;
+        drone.retargetCooldown = Math.max(
+          drone.retargetCooldown || 0,
+          hunterSwarm ? 0.14 : 0.24,
+        );
+      }
+
+      drone.target = null;
+
+      if ((drone.retargetCooldown || 0) <= 0) {
+        target = findHunterDroneTarget(drone, assignedTargets);
+      }
+    }
+
     if (target) {
       assignedTargets.add(target);
+      drone.target = target;
       const oldBeamDamage = (world.waveBonusModifiers.hunterProtocol ? 170 : 120)
         * world.waveBonusModifiers.hunterDamageMul
         * (hunterSwarm ? 1.28 : 1);
       const beamDamage = oldBeamDamage * 0.3;
       target.hp -= beamDamage * dt;
       target.hitFlash = Math.max(target.hitFlash, 0.15);
-      drone.target = target;
       drone.beamAlpha = Math.min(1, Math.max(drone.beamAlpha, 0.22) + dt * (hunterSwarm ? 12 : 9));
       drone.beamJitter = (hunterSwarm ? 4.8 : 3.8) + Math.sin(drone.pulse * 0.9) * 1.6;
       if (world.droneBeamSoundCooldown <= 0 && (drone.beamAlpha < 0.5 + drone.fireOffset || Math.random() > 0.82)) {
@@ -3971,6 +5300,9 @@ function updateMuzzleFlashes(dt) {
 
 function updateTimers(dt) {
   updateCamera();
+  if (world.state === "playing") {
+    world.runDuration += dt;
+  }
   world.comboTimer = Math.max(0, world.comboTimer - dt);
   if (world.comboTimer === 0) world.combo = 1;
   world.screenShake = Math.max(0, world.screenShake - dt * 1.28);
@@ -3994,11 +5326,37 @@ function updateTimers(dt) {
   }
   if (world.banner) {
     world.banner.timer -= dt;
-    if (world.banner.timer <= 0) world.banner = null;
+    if (world.banner.timer <= 0) {
+      world.banner = null;
+      activateNextAnnouncement();
+    }
+  } else {
+    activateNextAnnouncement();
   }
   if (world.synergyToast) {
     world.synergyToast.timer -= dt;
-    if (world.synergyToast.timer <= 0) world.synergyToast = null;
+    if (world.synergyToast.timer <= 0) {
+      world.synergyToast = null;
+      activateNextAnnouncement();
+    }
+  } else {
+    activateNextAnnouncement();
+  }
+  if (world.bossWarning) {
+    world.bossWarning.timer -= dt;
+    if (world.bossWarning.timer <= 0) {
+      world.bossWarning = null;
+      activateNextAnnouncement();
+    }
+  } else {
+    activateNextAnnouncement();
+  }
+  if (world.cheatToastTimer > 0) {
+    world.cheatToastTimer = Math.max(0, world.cheatToastTimer - dt);
+    if (world.cheatToastTimer <= 0) {
+      world.cheatToast = null;
+    }
+    syncCheatToastDom();
   }
   for (const key of Object.keys(world.buffs)) world.buffs[key] = Math.max(0, world.buffs[key] - dt);
   for (const solid of world.destructibles) solid.flash = Math.max(0, solid.flash - dt);
@@ -4069,6 +5427,8 @@ export {
   mainMenuStartButton,
   mainMenuControlsButton,
   mainMenuUpgradesButton,
+  mainMenuSynergyGuideButton,
+  mainMenuAchievementsButton,
   mainMenuHallButton,
   mainMenuFullscreenButton,
   mainMenuFullscreenState,
@@ -4103,15 +5463,24 @@ export {
   overlayMetaButton,
   audioPrompt,
   perkOverlay,
+  perkSynergyGuideButton,
   perkSynergyPanel,
   perkControls,
   perkChoices,
   metaOverlay,
+  metaSynergyGuideButton,
   closeMetaButton,
+  synergyGuideOverlay,
+  closeSynergyGuideButton,
+  backSynergyGuideButton,
+  achievementsOverlay,
+  closeAchievementsButton,
+  backAchievementsButton,
   metaCreditsValue,
   metaEarnedValue,
   metaStatsGrid,
   metaUpgradeList,
+  metaUpgradeTabs,
   metaTeaserCredits,
   runSummaryPanel,
   runSummaryWave,
@@ -4158,6 +5527,9 @@ export {
   pick,
   dist,
   angleDelta,
+  bossDisplayName,
+  countActiveThreatUnits,
+  enemiesRemainingForDisplay,
   layoutX,
   layoutY,
   layoutW,
@@ -4185,7 +5557,16 @@ export {
   spawnConcreteBreakEffect,
   spawnGibs,
   banner,
+  queueSynergyToast,
+  queueBossWarning,
+  queueBossDefeated,
   addScreenShake,
+  showCheatToast,
+  markRunCheated,
+  addCheatCredits,
+  cheatKillAll,
+  cheatHealMe,
+  cheatNuke,
   syncPointerWorld,
   updateCamera,
   resizeGameViewportForFullscreen,
@@ -4201,6 +5582,7 @@ export {
   closeLeaderboardOverlay,
   selectLeaderboardEntry,
   renderMetaUpgrades,
+  setMetaUpgradeTab,
   showScoreEntry,
   hideScoreEntry,
   saveLeaderboardEntry,
@@ -4233,6 +5615,10 @@ export {
   renderPerkSynergies,
   togglePerkSynergyDescription,
   renderWaveBonusSelection,
+  openSynergyGuideOverlay,
+  closeSynergyGuideOverlay,
+  openAchievementsOverlay,
+  closeAchievementsOverlay,
   startWaveClearSequence,
   updateWaveClear,
   openWaveBonusSelection,
@@ -4264,6 +5650,13 @@ export {
   finalizeRunMetaProgress,
   renderRunSummary,
   damagePlayer,
+  applyDamageToFoe,
+  trackPlayerDamagedForAchievements,
+  trackBarrelDestroyedForAchievements,
+  trackWaveStartedForAchievements,
+  trackWaveClearedForAchievements,
+  trackWeaponChangedForAchievements,
+  trackSynergyActivatedForAchievements,
   updateParticles,
   updateBlastGlows,
   updateFireZones,

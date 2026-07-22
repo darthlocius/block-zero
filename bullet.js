@@ -14,6 +14,7 @@ import {
   applyFoeKnockback,
   dist,
   damagePlayer,
+  applyDamageToFoe,
   addScreenShake,
   getMetaExecutionBonusMultiplier,
   hasSynergy,
@@ -121,7 +122,7 @@ function triggerShockCorridor(primaryTarget, shot) {
   }
   if (!chainTarget) return;
   const arcDamage = shot.damage * 0.34;
-  chainTarget.hp -= arcDamage;
+  applyDamageToFoe(chainTarget, arcDamage, { source: "shockCorridor", weaponId: shot.weaponId });
   chainTarget.hitFlash = Math.max(chainTarget.hitFlash, 0.16);
   burst(chainTarget.x, chainTarget.y, "#8ef3ff", 4, 0.5);
   spawnImpactFlash(chainTarget.x, chainTarget.y, "#8ef3ff", 0.92, "plasmaOrb");
@@ -150,6 +151,14 @@ function shoot() {
         pierce += world.waveBonusModifiers.pistolDeadeyePierceBonus;
       }
     }
+    const baseLife = weapon.id === "shotgun"
+      ? 0.72
+      : weapon.id === "rail"
+        ? 1.15
+        : weapon.id === "smg"
+          ? 1.6
+          : 2.2;
+    const projectileLife = baseLife * (weapon.rangeMul || 1);
     projectile(
       muzzle,
       angle,
@@ -160,7 +169,7 @@ function shoot() {
       true,
       weapon.radius,
       {
-        life: weapon.id === "shotgun" ? 0.72 : weapon.id === "rail" ? 1.15 : weapon.id === "smg" ? 1.6 : 2.2,
+        life: projectileLife,
         pierce,
         weaponId: weapon.id,
       },
@@ -200,7 +209,7 @@ function updateShots(dt) {
           damage *= world.waveBonusModifiers.executionDamageMul;
         }
         if (foe.hp / foe.maxHp <= 0.35) damage *= getMetaExecutionBonusMultiplier();
-        foe.hp -= damage;
+        applyDamageToFoe(foe, damage, { source: "playerShot", weaponId: shot.weaponId });
         foe.hitFlash = 0.12;
         applyShotKnockback(foe, shot);
         triggerShockCorridor(foe, shot);

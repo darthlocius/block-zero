@@ -4,8 +4,11 @@ import {
   gameFrame,
   fullscreenButton,
   mainMenuStartButton,
+  mainMenuOverlay,
   mainMenuControlsButton,
   mainMenuUpgradesButton,
+  mainMenuSynergyGuideButton,
+  mainMenuAchievementsButton,
   mainMenuHallButton,
   mainMenuFullscreenButton,
   mainMenuFullscreenState,
@@ -21,6 +24,14 @@ import {
   overlayButton,
   overlayMetaButton,
   closeMetaButton,
+  metaSynergyGuideButton,
+  perkSynergyGuideButton,
+  synergyGuideOverlay,
+  closeSynergyGuideButton,
+  backSynergyGuideButton,
+  achievementsOverlay,
+  closeAchievementsButton,
+  backAchievementsButton,
   closeLeaderboardButton,
   audioPrompt,
   perkSynergyPanel,
@@ -30,6 +41,7 @@ import {
   leaderboardFullBody,
   metaOverlay,
   metaUpgradeList,
+  metaUpgradeTabs,
   saveScoreButton,
   playerNameInput,
   resumeRunButton,
@@ -40,6 +52,12 @@ import {
   sfxVolume,
   audio,
   startGame,
+  showCheatToast,
+  addCheatCredits,
+  cheatKillAll,
+  cheatHealMe,
+  cheatNuke,
+  markRunCheated,
   saveLeaderboardEntry,
   selectLeaderboardEntry,
   chooseWaveBonus,
@@ -53,6 +71,7 @@ import {
   returnToMainMenuFromResults,
   toggleMainMenuAudioSettings,
   syncMainMenuAudioState,
+  isActiveRunState,
   isPauseAllowed,
   openLeaderboardOverlay,
   closeLeaderboardOverlay,
@@ -61,11 +80,17 @@ import {
   exitToProjectPage,
   openMetaOverlay,
   closeMetaOverlay,
+  openSynergyGuideOverlay,
+  closeSynergyGuideOverlay,
+  openAchievementsOverlay,
+  closeAchievementsOverlay,
   buyMetaUpgrade,
+  setMetaUpgradeTab,
   syncPointerWorld,
   resizeGameViewportForFullscreen,
 } from "./game.js";
 import { shoot, dash } from "./bullet.js";
+import { forceSpawnTechpriestNow } from "./enemy.js";
 import { setLanguage, t } from "./i18n.js";
 
 // Input wiring and audio UI controls.
@@ -101,6 +126,70 @@ function hideAudioPrompt() {
 function isTextInputTarget(target) {
   if (!(target instanceof Element)) return false;
   return Boolean(target.closest("input, textarea, select, [contenteditable]")) || Boolean(target.isContentEditable);
+}
+
+let cheatBuffer = "";
+const CHEAT_BUFFER_LIMIT = 24;
+
+const CHEAT_CODE_MAP = {
+  KeyA: "A",
+  KeyB: "B",
+  KeyC: "C",
+  KeyD: "D",
+  KeyE: "E",
+  KeyF: "F",
+  KeyG: "G",
+  KeyH: "H",
+  KeyI: "I",
+  KeyJ: "J",
+  KeyK: "K",
+  KeyL: "L",
+  KeyM: "M",
+  KeyN: "N",
+  KeyO: "O",
+  KeyP: "P",
+  KeyQ: "Q",
+  KeyR: "R",
+  KeyS: "S",
+  KeyT: "T",
+  KeyU: "U",
+  KeyV: "V",
+  KeyW: "W",
+  KeyX: "X",
+  KeyY: "Y",
+  KeyZ: "Z",
+  Digit0: "0",
+  Digit1: "1",
+  Digit2: "2",
+  Digit3: "3",
+  Digit4: "4",
+  Digit5: "5",
+  Digit6: "6",
+  Digit7: "7",
+  Digit8: "8",
+  Digit9: "9",
+};
+
+const CONTROL_CODE_TO_KEY = {
+  KeyW: "w",
+  KeyA: "a",
+  KeyS: "s",
+  KeyD: "d",
+  ArrowUp: "arrowup",
+  ArrowDown: "arrowdown",
+  ArrowLeft: "arrowleft",
+  ArrowRight: "arrowright",
+  Space: " ",
+  ShiftLeft: "shift",
+  ShiftRight: "shift",
+};
+
+function normalizedControlKey(event) {
+  return CONTROL_CODE_TO_KEY[event.code] || event.key.toLowerCase();
+}
+
+function isGameplayControlEvent(event) {
+  return Boolean(CONTROL_CODE_TO_KEY[event.code]) || event.code === "KeyE";
 }
 
 function isGameFullscreen() {
@@ -150,11 +239,120 @@ async function resumeAutoplayMusic() {
   hideAudioPrompt();
 }
 
+function getCheatChar(event) {
+  return CHEAT_CODE_MAP[event.code] || "";
+}
+
+function shouldIgnoreCheatInput(event) {
+  if (event.ctrlKey || event.altKey || event.metaKey) return true;
+  return isTextInputTarget(event.target);
+}
+
+function menuCheatOverlaysClosed() {
+  return !controlsOverlay?.classList.contains("visible")
+    && !leaderboardOverlay?.classList.contains("visible")
+    && !metaOverlay?.classList.contains("visible")
+    && !synergyGuideOverlay?.classList.contains("visible")
+    && !achievementsOverlay?.classList.contains("visible");
+}
+
+function canEnterMenuCheats() {
+  return world.state === "menu"
+    && mainMenuOverlay?.classList.contains("visible")
+    && menuCheatOverlaysClosed();
+}
+
+function canEnterPauseCheats() {
+  return world.state === "paused"
+    && pauseOverlay?.classList.contains("visible")
+    && isActiveRunState(world.stateBeforePause);
+}
+
+const MENU_CHEATS = {
+  GODMODE: () => {
+    world.nextRunCheats.godMode = true;
+    showCheatToast("GODMODE ENABLED / NEXT RUN");
+  },
+  RICHMAN: () => {
+    addCheatCredits(1000);
+    showCheatToast("RICHMAN / +1000 CREDITS");
+  },
+  TECHPRIEST: () => {
+    world.nextRunCheats.forceTechpriest = true;
+    showCheatToast("TECHPRIEST FORCED / NEXT RUN");
+  },
+  ARMORY: () => {
+    world.nextRunCheats.armoryDrop = true;
+    showCheatToast("ARMORY DROP / NEXT RUN");
+  },
+  SWARMHELL: () => {
+    world.nextRunCheats.swarmHell = true;
+    showCheatToast("SWARMHELL / NEXT RUN");
+  },
+};
+
+const PAUSE_CHEATS = {
+  KILLALL: () => cheatKillAll(),
+  HEALME: () => cheatHealMe(),
+  TECHNOW: () => {
+    markRunCheated();
+    if (forceSpawnTechpriestNow()) {
+      showCheatToast("TECH-PRIEST SUMMONED / TECHNOW");
+    } else {
+      showCheatToast("TECHNOW FAILED / INVALID WAVE");
+    }
+  },
+  NUKE: () => cheatNuke(),
+};
+
+function tryActivateCheat(buffer, table) {
+  for (const [code, activate] of Object.entries(table)) {
+    if (buffer.endsWith(code)) {
+      activate();
+      return true;
+    }
+  }
+  return false;
+}
+
+function handleCheatInput(event) {
+  if (shouldIgnoreCheatInput(event)) return false;
+
+  const allowMenuCodes = canEnterMenuCheats();
+  const allowPauseCodes = canEnterPauseCheats();
+  if (!allowMenuCodes && !allowPauseCodes) return false;
+
+  const char = getCheatChar(event);
+  if (!char) return false;
+
+  cheatBuffer = `${cheatBuffer}${char}`.slice(-CHEAT_BUFFER_LIMIT);
+
+  if (allowMenuCodes && tryActivateCheat(cheatBuffer, MENU_CHEATS)) {
+    cheatBuffer = "";
+    return true;
+  }
+
+  if (allowPauseCodes && tryActivateCheat(cheatBuffer, PAUSE_CHEATS)) {
+    cheatBuffer = "";
+    return true;
+  }
+
+  return false;
+}
+
 function initInput() {
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
       event.preventDefault();
 
+      if (achievementsOverlay?.classList.contains("visible")) {
+        closeAchievementsOverlay();
+        return;
+      }
+      if (synergyGuideOverlay?.classList.contains("visible")) {
+        closeSynergyGuideOverlay();
+        return;
+      }
       if (controlsOverlay?.classList.contains("visible")) {
         closeControlsOverlay();
         return;
@@ -190,17 +388,39 @@ function initInput() {
       confirmDeathSequence();
       return;
     }
-    const key = event.key.toLowerCase();
+    if (handleCheatInput(event)) {
+      event.preventDefault();
+      return;
+    }
     const textInput = isTextInputTarget(event.target);
+    const key = normalizedControlKey(event);
+
+    if (textInput) {
+      return;
+    }
+
     world.keys.add(key);
-    if (event.code === "KeyE" && !textInput) world.keys.add("interact");
-    if (key === "shift") dash();
-    if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) event.preventDefault();
+
+    if (event.code === "KeyE") {
+      world.keys.add("interact");
+    }
+
+    if (key === "shift") {
+      dash();
+    }
+
+    if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
+      event.preventDefault();
+    }
   });
 
   window.addEventListener("keyup", (event) => {
-    world.keys.delete(event.key.toLowerCase());
-    if (event.code === "KeyE") world.keys.delete("interact");
+    const key = normalizedControlKey(event);
+    world.keys.delete(key);
+
+    if (event.code === "KeyE") {
+      world.keys.delete("interact");
+    }
   });
 
   canvas.addEventListener("mousemove", pointer);
@@ -228,15 +448,16 @@ function initInput() {
   });
   document.addEventListener("fullscreenchange", syncFullscreenUi);
   window.addEventListener("resize", () => {
-    if (document.fullscreenElement === fullscreenRoot) {
-      requestAnimationFrame(resizeGameViewportForFullscreen);
-    }
+    requestAnimationFrame(resizeGameViewportForFullscreen);
   });
   syncFullscreenUi();
+  requestAnimationFrame(resizeGameViewportForFullscreen);
 
   mainMenuStartButton?.addEventListener("click", startGame);
   mainMenuControlsButton?.addEventListener("click", openControlsOverlay);
   mainMenuUpgradesButton?.addEventListener("click", openMetaOverlay);
+  mainMenuSynergyGuideButton?.addEventListener("click", openSynergyGuideOverlay);
+  mainMenuAchievementsButton?.addEventListener("click", openAchievementsOverlay);
   mainMenuHallButton?.addEventListener("click", openLeaderboardOverlay);
   mainMenuAudioButton?.addEventListener("click", toggleMainMenuAudioSettings);
   mainMenuFullscreenButton?.addEventListener("click", toggleGameFullscreen);
@@ -250,7 +471,27 @@ function initInput() {
   menuMetaButton?.addEventListener("click", openMetaOverlay);
   openLeaderboardButton?.addEventListener("click", openLeaderboardOverlay);
   overlayMetaButton?.addEventListener("click", openMetaOverlay);
+  metaSynergyGuideButton?.addEventListener("click", openSynergyGuideOverlay);
+  perkSynergyGuideButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openSynergyGuideOverlay();
+  });
   closeMetaButton?.addEventListener("click", closeMetaOverlay);
+  closeSynergyGuideButton?.addEventListener("click", closeSynergyGuideOverlay);
+  backSynergyGuideButton?.addEventListener("click", closeSynergyGuideOverlay);
+  synergyGuideOverlay?.addEventListener("click", (event) => {
+    if (event.target === synergyGuideOverlay) {
+      closeSynergyGuideOverlay();
+    }
+  });
+  closeAchievementsButton?.addEventListener("click", closeAchievementsOverlay);
+  backAchievementsButton?.addEventListener("click", closeAchievementsOverlay);
+  achievementsOverlay?.addEventListener("click", (event) => {
+    if (event.target === achievementsOverlay) {
+      closeAchievementsOverlay();
+    }
+  });
   closeLeaderboardButton?.addEventListener("click", closeLeaderboardOverlay);
   perkChoices?.addEventListener("click", (event) => {
     const card = event.target.closest("[data-bonus-id]");
@@ -279,6 +520,11 @@ function initInput() {
     const button = event.target.closest("[data-meta-upgrade-id]");
     if (!button) return;
     buyMetaUpgrade(button.dataset.metaUpgradeId);
+  });
+  metaUpgradeTabs?.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-meta-tab]");
+    if (!button) return;
+    setMetaUpgradeTab(button.dataset.metaTab);
   });
   saveScoreButton?.addEventListener("click", saveLeaderboardEntry);
   playerNameInput?.addEventListener("keydown", (event) => {

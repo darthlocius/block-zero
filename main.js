@@ -23,8 +23,17 @@ import { updateShots } from "./bullet.js";
 import { render } from "./render.js";
 import { initInput, syncCurrentMusic, applyVolumeSettings } from "./input.js";
 import { t, updateStaticTranslations } from "./i18n.js";
+import { BUILD_LABEL } from "./version.js";
 
 // Main loop bootstrap that composes the gameplay modules.
+
+function syncBuildVersion() {
+  const buildVersion = document.getElementById("buildVersion");
+  if (!buildVersion) return;
+
+  buildVersion.textContent = BUILD_LABEL;
+  buildVersion.title = `Block Zero ${BUILD_LABEL}`;
+}
 
 function update(dt) {
   if (world.state === "paused") {
@@ -111,6 +120,7 @@ function tick(time) {
 }
 
 function bootstrap() {
+  syncBuildVersion();
   updateStaticTranslations();
   initInput();
   menuOverlay();

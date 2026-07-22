@@ -12,7 +12,9 @@
   audio,
   maybePickup,
   damagePlayer,
+  applyDamageToFoe,
   addScreenShake,
+  trackBarrelDestroyedForAchievements,
 } from "./game.js";
 
 // Collision resolution for actors, shots, and destructible solids.
@@ -30,7 +32,7 @@ function applyExplosionDamage(x, y, radius, damage, sourceSolid = null) {
   for (const foe of world.foes) {
     const d = Math.hypot(foe.x - x, foe.y - y);
     if (d >= radius) continue;
-    foe.hp -= damage * (1 - d / radius);
+    applyDamageToFoe(foe, damage * (1 - d / radius), { source: "explosion" });
   }
   const playerDistance = Math.hypot(player.x - x, player.y - y);
   if (playerDistance < radius) damagePlayer(damage * 0.34 * (1 - playerDistance / radius), { explosive: true });
@@ -62,6 +64,9 @@ function damageSolid(solid, amount, x, y) {
   else burst(x, y, "#b9c2d0", 4, 0.6);
   if (solid.hp > 0) return;
   solid.destroyed = true;
+  if (solid.type === "barrel") {
+    trackBarrelDestroyedForAchievements();
+  }
   world.score += solid.reward;
   addDecal(solid.x, solid.y, Math.max(solid.w, solid.h) * 0.55, "rgba(18, 18, 18, 0.32)", 0.18);
   if (solid.type === "barrel") spawnBarrelExplosionEffect(solid);

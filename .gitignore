@@ -6,3 +6,6 @@ build
 Thumbs.db
 .log
 .zip*.zip
+
+# Local project archives
+/*.zip

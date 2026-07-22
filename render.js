@@ -6,8 +6,9 @@
   world,
   TAU,
   clamp,
-  rand,
   currentWeapon,
+  enemiesRemainingForDisplay,
+  bossDisplayName,
   layoutX,
   layoutY,
   layoutW,
@@ -24,6 +25,65 @@ import { t } from "./i18n.js";
 // Canvas rendering for the world, actors, effects, and HUD.
 
 const RADAR_ENEMY_RANGE = 520;
+
+let techpriestEmpowerGlowSprite = null;
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  if (w <= 0 || h <= 0) return;
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + w - radius, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+  ctx.lineTo(x + w, y + h - radius);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+  ctx.lineTo(x + radius, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function isWorldCircleVisible(x, y, radius = 32, margin = 96) {
+  const camera = world.camera;
+  return (
+    x + radius + margin >= camera.x
+    && x - radius - margin <= camera.x + camera.width
+    && y + radius + margin >= camera.y
+    && y - radius - margin <= camera.y + camera.height
+  );
+}
+
+function getTechpriestEmpowerGlowSprite() {
+  if (techpriestEmpowerGlowSprite) return techpriestEmpowerGlowSprite;
+
+  const size = 128;
+  const glowCanvas = typeof OffscreenCanvas !== "undefined"
+    ? new OffscreenCanvas(size, size)
+    : document.createElement("canvas");
+
+  glowCanvas.width = size;
+  glowCanvas.height = size;
+
+  const gctx = glowCanvas.getContext("2d");
+  const cx = size / 2;
+  const cy = size / 2;
+  const gradient = gctx.createRadialGradient(cx, cy, 3, cx, cy, size * 0.5);
+
+  gradient.addColorStop(0, "rgba(210, 255, 120, 0.95)");
+  gradient.addColorStop(0.24, "rgba(135, 255, 72, 0.62)");
+  gradient.addColorStop(0.52, "rgba(67, 235, 73, 0.34)");
+  gradient.addColorStop(0.78, "rgba(33, 180, 58, 0.16)");
+  gradient.addColorStop(1, "rgba(33, 180, 58, 0)");
+
+  gctx.fillStyle = gradient;
+  gctx.beginPath();
+  gctx.arc(cx, cy, size * 0.5, 0, TAU);
+  gctx.fill();
+
+  techpriestEmpowerGlowSprite = glowCanvas;
+  return techpriestEmpowerGlowSprite;
+}
 
 function roundedRect(x, y, width, height, radius) {
   const r = Math.min(radius, width / 2, height / 2);
@@ -900,8 +960,138 @@ function drawParticles() {
   ctx.globalAlpha = 1;
 }
 
-function drawFoe(foe) {
+function drawTechpriestEmpoweredAura(foe) {
+  if (!foe.techpriestEmpowered) return;
+
+  const glow = getTechpriestEmpowerGlowSprite();
+  const pulse = 0.5 + Math.sin(foe.pulse * 2.15 + (foe.swarmSeed || 0)) * 0.5;
+  const flash = Math.max(0, foe.empowerFlashTimer || 0);
+
+  const isSwarm = foe.kind === "swarm";
+  const sizeMul = isSwarm ? 3.45 : 3.25;
+  const alphaBase = isSwarm ? 0.62 : 0.68;
+  const alpha = Math.min(0.9, alphaBase + pulse * 0.16 + flash * 0.14);
+
+  const w = foe.radius * sizeMul;
+  const h = foe.radius * (isSwarm ? 2.65 : 2.75);
+
+  ctx.save();
+
+  // Cheap cached glow under the enemy.
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(
+    glow,
+    foe.x - w / 2,
+    foe.y - h / 2 + foe.radius * 0.08,
+    w,
+    h,
+  );
+
+  ctx.globalAlpha = Math.min(0.78, 0.42 + pulse * 0.24);
+  ctx.strokeStyle = "#9cff2f";
+  ctx.lineWidth = isSwarm ? 1.5 : 2.2;
+  ctx.beginPath();
+  ctx.ellipse(
+    foe.x,
+    foe.y + foe.radius * 0.12,
+    foe.radius * (isSwarm ? 1.55 : 1.72),
+    foe.radius * (isSwarm ? 1.12 : 1.22),
+    0,
+    0,
+    TAU,
+  );
+  ctx.stroke();
+
+  ctx.globalAlpha = Math.min(0.42, 0.18 + pulse * 0.18 + flash * 0.12);
+  ctx.fillStyle = "rgba(156, 255, 47, 0.55)";
+  ctx.beginPath();
+  ctx.arc(
+    foe.x,
+    foe.y - foe.radius * 0.28,
+    Math.max(3, foe.radius * (isSwarm ? 0.42 : 0.48)),
+    0,
+    TAU,
+  );
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawTechpriestShield(foe) {
+  if (foe.id !== "techpriest") return;
+  if (!foe.maxShieldHp || foe.shieldHp <= 0) return;
+
+  const ratio = Math.max(0, Math.min(1, foe.shieldHp / foe.maxShieldHp));
+  const flash = Math.max(0, foe.shieldFlash || 0);
+  const pulse = 0.5 + Math.sin(foe.pulse * 1.5) * 0.5;
+
+  ctx.save();
+  ctx.globalAlpha = 0.18 + ratio * 0.18 + flash * 0.35;
+  ctx.strokeStyle = "#8ef3ff";
+  ctx.shadowColor = "#8ef3ff";
+  ctx.shadowBlur = 8 + flash * 10;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(
+    foe.x,
+    foe.y,
+    foe.radius * (1.55 + pulse * 0.05),
+    foe.radius * (1.28 + pulse * 0.05),
+    0,
+    0,
+    TAU,
+  );
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTechpriestEmpoweredArcs(foe, canDrawArc = false) {
+  if (!canDrawArc) return;
+  if (!foe.techpriestEmpowered) return;
+
+  const arcTimer = Math.max(0, foe.empowerArcTimer || 0);
+  if (arcTimer <= 0) return;
+
+  const life = Math.min(1, arcTimer / 0.2);
+  const seed = foe.empowerArcSeed || foe.swarmSeed || 0;
+  const isSwarm = foe.kind === "swarm";
+
+  ctx.save();
+  ctx.globalAlpha = isSwarm
+    ? Math.min(0.66, 0.32 + life * 0.28)
+    : Math.min(0.9, 0.42 + life * 0.42);
+  ctx.strokeStyle = "#8ef3ff";
+  ctx.lineWidth = isSwarm ? 1.4 : 2.4;
+
+  const arcs = isSwarm ? 1 : 2;
+
+  for (let i = 0; i < arcs; i += 1) {
+    const a = seed + i * 2.3 + Math.sin(foe.pulse * 1.6 + i) * 0.32;
+    const r1 = foe.radius * (isSwarm ? 0.58 : 0.66);
+    const r2 = foe.radius * (isSwarm ? 1.35 : 1.38);
+    const bend = 0.62 + i * 0.12;
+
+    const x1 = foe.x + Math.cos(a) * r1;
+    const y1 = foe.y + Math.sin(a) * r1;
+    const x2 = foe.x + Math.cos(a + bend) * r2;
+    const y2 = foe.y + Math.sin(a + bend) * r2;
+    const mx = foe.x + Math.cos(a + bend * 0.5) * foe.radius * 1.04;
+    const my = foe.y + Math.sin(a + bend * 0.5) * foe.radius * 0.92;
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(mx, my);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function drawFoe(foe, empoweredArcBudget = 0) {
   const lookLeft = typeof foe.facingLeft === "boolean" ? foe.facingLeft : player.x < foe.x;
+  if (foe.techpriestEmpowered) drawTechpriestEmpoweredAura(foe);
+  drawTechpriestShield(foe);
   const meta = enemySpritesheetMeta[foe.kind];
   const sheetKey = foe.kind === "animal" ? "enemy_animal_sheet" : null;
   const sheet = sheetKey ? assets.getImage(sheetKey) : null;
@@ -928,6 +1118,7 @@ function drawFoe(foe) {
         foe.radius * 3.2,
       );
       ctx.restore();
+      if (foe.techpriestEmpowered) drawTechpriestEmpoweredArcs(foe, empoweredArcBudget > 0);
       return;
     }
   }
@@ -937,6 +1128,8 @@ function drawFoe(foe) {
     animal: 2.95,
     monster: 3.15,
     criminal: 3.35,
+    swarm: 2.75,
+    techpriest: 3.55,
   };
   const spriteScale = foe.boss ? 3.4 : (enemySpriteScale[foe.kind] || 2.95);
   const sprite = assets.getImage(spriteKey) || (foe.boss ? assets.getImage("boss") : null);
@@ -957,6 +1150,7 @@ function drawFoe(foe) {
       ctx.fillStyle = "#ff4f6d";
       ctx.fillRect(foe.x - 40, foe.y + foe.radius + 12, 80 * (foe.hp / foe.maxHp), 6);
     }
+    if (foe.techpriestEmpowered) drawTechpriestEmpoweredArcs(foe, empoweredArcBudget > 0);
     return;
   }
   ctx.save();
@@ -1017,10 +1211,26 @@ function drawFoe(foe) {
     ctx.fillRect(-40, foe.radius + 12, 80 * hp, 6);
   }
   ctx.restore();
+  if (foe.techpriestEmpowered) drawTechpriestEmpoweredArcs(foe, empoweredArcBudget > 0);
 }
 
 function drawFoes() {
-  for (const foe of world.foes) drawFoe(foe);
+  let empoweredArcBudget = 14;
+
+  for (const foe of world.foes) {
+    const spriteMargin = foe.kind === "techpriest" ? 180 : 120;
+    if (!isWorldCircleVisible(foe.x, foe.y, foe.radius || 28, spriteMargin)) continue;
+
+    drawFoe(foe, empoweredArcBudget);
+
+    if (
+      foe.techpriestEmpowered
+      && (foe.empowerArcTimer || 0) > 0
+      && empoweredArcBudget > 0
+    ) {
+      empoweredArcBudget -= 1;
+    }
+  }
 }
 
 function drawHunterDrone() {
@@ -1269,9 +1479,7 @@ function drawRadar() {
   const radarY = canvas.height - radius - margin - 12 * uiScale;
   const sweep = world.radar.ping * TAU;
   const shouldShowThreat = world.currentWave && world.state === "playing";
-  const enemiesRemaining = shouldShowThreat
-    ? Math.max(0, world.currentWave.regularTotal - world.currentWave.regularSpawned + world.foes.length)
-    : world.foes.length;
+  const enemiesRemaining = enemiesRemainingForDisplay();
   const threatLabel = t("canvas.enemiesRemaining", { count: enemiesRemaining });
   const threatPanelHeight = 24 * uiScale;
   const threatLabelY = radarY - radius - 14 * uiScale;
@@ -1353,6 +1561,19 @@ function drawRadar() {
     const scale = radius / RADAR_ENEMY_RANGE;
     const px = dx * scale;
     const py = dy * scale;
+    if (foe.id === "techpriest") {
+      ctx.fillStyle = "#8ef3ff";
+      ctx.beginPath();
+      ctx.arc(px, py, 4.5 * uiScale, 0, TAU);
+      ctx.fill();
+
+      ctx.strokeStyle = "#7cff4f";
+      ctx.lineWidth = Math.max(1, 1.4 * uiScale);
+      ctx.beginPath();
+      ctx.arc(px, py, 7 * uiScale, 0, TAU);
+      ctx.stroke();
+      continue;
+    }
     ctx.fillStyle = foe.boss ? "#ff5d87" : "#7bffac";
     ctx.beginPath();
     ctx.arc(px, py, (foe.boss ? 4 : 2.5) * uiScale, 0, TAU);
@@ -1395,6 +1616,116 @@ function drawUi() {
   drawRadar();
 }
 
+function getActiveBoss() {
+  return world.foes.find((foe) => foe.hp > 0 && foe.boss);
+}
+
+function drawBossHealthBar() {
+  const boss = getActiveBoss();
+  if (!boss) return;
+
+  const uiScale = world.canvasUiScale || 1;
+  const maxHp = Math.max(1, boss.maxHp || boss.hp || 1);
+  const ratio = Math.max(0, Math.min(1, boss.hp / maxHp));
+
+  const width = Math.min(canvas.width * 0.58, 660 * uiScale);
+  const height = 22 * uiScale;
+  const x = canvas.width / 2 - width / 2;
+
+  // Place the boss HP bar directly below the active bonus badge.
+  const baseSafeY = world.activeWaveBonus ? 188 : 142;
+  const fullscreenSafeY = world.activeWaveBonus ? 196 : 148;
+  const y = world.isGameFullscreen
+    ? Math.min(canvas.height * 0.36, fullscreenSafeY * uiScale)
+    : Math.min(canvas.height * 0.34, baseSafeY * uiScale);
+  const panelX = x - 18 * uiScale;
+  const panelY = y - 24 * uiScale;
+  const panelW = width + 36 * uiScale;
+  const panelH = 72 * uiScale;
+
+  ctx.save();
+
+  ctx.globalAlpha = 0.98;
+
+  const outerGradient = ctx.createLinearGradient(0, panelY, 0, panelY + panelH);
+  outerGradient.addColorStop(0, "rgba(38, 10, 14, 0.96)");
+  outerGradient.addColorStop(0.22, "rgba(18, 7, 10, 0.96)");
+  outerGradient.addColorStop(1, "rgba(8, 10, 14, 0.96)");
+
+  ctx.shadowColor = "rgba(0, 0, 0, 0.42)";
+  ctx.shadowBlur = 18 * uiScale;
+  ctx.fillStyle = outerGradient;
+  roundRect(panelX, panelY, panelW, panelH, 20 * uiScale);
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 2.2 * uiScale;
+  ctx.strokeStyle = "rgba(255, 56, 76, 0.62)";
+  roundRect(panelX, panelY, panelW, panelH, 20 * uiScale);
+  ctx.stroke();
+
+  ctx.lineWidth = 1 * uiScale;
+  ctx.strokeStyle = "rgba(255, 196, 196, 0.14)";
+  roundRect(panelX + 2 * uiScale, panelY + 2 * uiScale, panelW - 4 * uiScale, panelH - 4 * uiScale, 18 * uiScale);
+  ctx.stroke();
+
+  ctx.font = `${15 * uiScale}px "Russo One", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffe3e6";
+  ctx.shadowColor = "rgba(255, 48, 78, 0.72)";
+  ctx.shadowBlur = 10 * uiScale;
+  ctx.fillText(bossDisplayName(boss).toUpperCase(), canvas.width / 2, y - 10 * uiScale);
+
+  ctx.shadowBlur = 0;
+
+  const trackY = y + 10 * uiScale;
+  const trackGradient = ctx.createLinearGradient(0, trackY, 0, trackY + height);
+  trackGradient.addColorStop(0, "rgba(22, 24, 30, 0.98)");
+  trackGradient.addColorStop(1, "rgba(8, 10, 14, 0.98)");
+
+  ctx.fillStyle = trackGradient;
+  roundRect(x, trackY, width, height, 999);
+  ctx.fill();
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.10)";
+  ctx.lineWidth = 1 * uiScale;
+  roundRect(x, trackY, width, height, 999);
+  ctx.stroke();
+
+  const fillWidth = Math.max(0, width * ratio);
+  if (fillWidth > 0) {
+    const hpGradient = ctx.createLinearGradient(x, trackY, x, trackY + height);
+    hpGradient.addColorStop(0, "#ff9a56");
+    hpGradient.addColorStop(0.34, "#ff4358");
+    hpGradient.addColorStop(1, "#7d0718");
+
+    ctx.fillStyle = hpGradient;
+    roundRect(x, trackY, fillWidth, height, 999);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(60, 0, 10, 0.24)";
+    roundRect(x, trackY + height * 0.52, fillWidth, height * 0.48, 999);
+    ctx.fill();
+
+    ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
+    roundRect(x + 2 * uiScale, trackY + 2 * uiScale, Math.max(0, fillWidth - 4 * uiScale), height * 0.32, 999);
+    ctx.fill();
+
+    ctx.strokeStyle = "rgba(255, 220, 220, 0.26)";
+    ctx.lineWidth = 1 * uiScale;
+    roundRect(x, trackY, fillWidth, height, 999);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = "rgba(255, 232, 232, 0.22)";
+  ctx.lineWidth = 1.2 * uiScale;
+  roundRect(x, trackY, width, height, 999);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
 function drawBanner() {
   if (!world.banner) return;
   const life = world.banner.timer / world.banner.total;
@@ -1431,36 +1762,147 @@ function drawBanner() {
   ctx.restore();
 }
 
-function drawSynergyToast() {
-  if (!world.synergyToast) return;
-  const life = world.synergyToast.timer / world.synergyToast.total;
-  const fadeIn = Math.min(1, (1 - life) / 0.18);
-  const fadeOut = Math.min(1, life / 0.24);
+function drawBossWarning() {
+  if (!world.bossWarning) return;
+
+  const life = world.bossWarning.timer / world.bossWarning.total;
+  const fadeIn = Math.min(1, (1 - life) / 0.14);
+  const fadeOut = Math.min(1, life / 0.28);
   const alpha = Math.min(fadeIn, fadeOut);
   const uiScale = world.canvasUiScale || 1;
+
+  const shake = Math.sin(world.lastTime * 0.07) * 2.5 * uiScale * alpha;
+
   ctx.save();
-  ctx.translate(canvas.width / 2, canvas.height * 0.34);
   ctx.globalAlpha = alpha;
-  const width = 360 * uiScale;
-  const height = 82 * uiScale;
-  const accent = world.synergyToast.accent || "#9fe7ff";
-  const glow = ctx.createLinearGradient(-width / 2, -height / 2, width / 2, height / 2);
-  glow.addColorStop(0, "rgba(8, 12, 18, 0.1)");
-  glow.addColorStop(0.5, "rgba(8, 12, 18, 0.92)");
-  glow.addColorStop(1, "rgba(8, 12, 18, 0.1)");
-  ctx.fillStyle = glow;
+  ctx.translate(canvas.width / 2 + shake, canvas.height * 0.39);
+
+  const width = Math.min(canvas.width * 0.9, 900 * uiScale);
+  const height = 164 * uiScale;
+
+  const bg = ctx.createLinearGradient(-width / 2, 0, width / 2, 0);
+  bg.addColorStop(0, "rgba(10, 0, 4, 0)");
+  bg.addColorStop(0.14, "rgba(55, 0, 12, 0.82)");
+  bg.addColorStop(0.5, "rgba(18, 0, 5, 0.96)");
+  bg.addColorStop(0.86, "rgba(55, 0, 12, 0.82)");
+  bg.addColorStop(1, "rgba(10, 0, 4, 0)");
+
+  ctx.fillStyle = bg;
   ctx.fillRect(-width / 2, -height / 2, width, height);
-  ctx.fillStyle = accent;
-  ctx.fillRect(-width / 2 + 24 * uiScale, -height / 2 + 10 * uiScale, width - 48 * uiScale, 3 * uiScale);
+
+  const red = world.bossWarning.accent || "#ff243d";
+
+  ctx.shadowColor = "rgba(255, 36, 61, 0.95)";
+  ctx.shadowBlur = 28 * uiScale;
+  ctx.fillStyle = red;
+  ctx.fillRect(-width / 2 + 42 * uiScale, -height / 2 + 16 * uiScale, width - 84 * uiScale, 4 * uiScale);
+  ctx.fillRect(-width / 2 + 42 * uiScale, height / 2 - 20 * uiScale, width - 84 * uiScale, 4 * uiScale);
+
   ctx.textAlign = "center";
-  ctx.font = `${13 * uiScale}px "Space Grotesk", sans-serif`;
-  ctx.fillStyle = "rgba(201, 224, 241, 0.9)";
-  ctx.fillText(world.synergyToast.subtitle, 0, -8 * uiScale);
-  ctx.font = `${26 * uiScale}px "Russo One", sans-serif`;
-  ctx.shadowColor = accent;
-  ctx.shadowBlur = 18 * uiScale;
-  ctx.fillStyle = "#f4fbff";
-  ctx.fillText(world.synergyToast.title, 0, 24 * uiScale);
+  ctx.textBaseline = "middle";
+
+  ctx.font = `${18 * uiScale}px "Russo One", sans-serif`;
+  ctx.fillStyle = "#ff9aa5";
+  ctx.shadowBlur = 14 * uiScale;
+  ctx.fillText(world.bossWarning.subtitle, 0, -48 * uiScale);
+
+  ctx.font = `${46 * uiScale}px "Russo One", sans-serif`;
+
+  const titleGradient = ctx.createLinearGradient(0, -28 * uiScale, 0, 18 * uiScale);
+  titleGradient.addColorStop(0, "#fff0f0");
+  titleGradient.addColorStop(0.32, "#ff4058");
+  titleGradient.addColorStop(1, "#7a0715");
+
+  ctx.lineWidth = 6 * uiScale;
+  ctx.strokeStyle = "rgba(35, 0, 5, 0.96)";
+  ctx.shadowColor = "rgba(255, 0, 34, 0.95)";
+  ctx.shadowBlur = 32 * uiScale;
+  ctx.strokeText(world.bossWarning.title, 0, -4 * uiScale);
+
+  ctx.fillStyle = titleGradient;
+  ctx.fillText(world.bossWarning.title, 0, -4 * uiScale);
+
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 1.5 * uiScale;
+  ctx.strokeStyle = "rgba(255, 210, 210, 0.68)";
+  ctx.strokeText(world.bossWarning.title, 0, -4 * uiScale);
+
+  ctx.font = `${28 * uiScale}px "Russo One", sans-serif`;
+  ctx.fillStyle = "#ffd1d5";
+  ctx.shadowColor = "rgba(255, 36, 61, 0.85)";
+  ctx.shadowBlur = 16 * uiScale;
+  ctx.fillText(world.bossWarning.bossName || "", 0, 50 * uiScale);
+
+  ctx.restore();
+}
+
+function drawSynergyToast() {
+  if (!world.synergyToast) return;
+
+  const life = world.synergyToast.timer / world.synergyToast.total;
+  const fadeIn = Math.min(1, (1 - life) / 0.16);
+  const fadeOut = Math.min(1, life / 0.28);
+  const alpha = Math.min(fadeIn, fadeOut);
+  const uiScale = world.canvasUiScale || 1;
+
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height * 0.36);
+  ctx.globalAlpha = alpha;
+
+  const pulse = 1 + Math.sin(world.lastTime * 0.008) * 0.018;
+  ctx.scale(pulse, pulse);
+
+  const width = Math.min(canvas.width * 0.86, 780 * uiScale);
+  const height = 132 * uiScale;
+
+  const bg = ctx.createLinearGradient(-width / 2, 0, width / 2, 0);
+  bg.addColorStop(0, "rgba(8, 10, 14, 0)");
+  bg.addColorStop(0.16, "rgba(24, 17, 8, 0.78)");
+  bg.addColorStop(0.5, "rgba(20, 14, 8, 0.94)");
+  bg.addColorStop(0.84, "rgba(24, 17, 8, 0.78)");
+  bg.addColorStop(1, "rgba(8, 10, 14, 0)");
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(-width / 2, -height / 2, width, height);
+
+  const gold = world.synergyToast.accent || "#ffbf4a";
+
+  ctx.fillStyle = gold;
+  ctx.shadowColor = "rgba(255, 191, 74, 0.9)";
+  ctx.shadowBlur = 26 * uiScale;
+  ctx.fillRect(-width / 2 + 36 * uiScale, -height / 2 + 14 * uiScale, width - 72 * uiScale, 3 * uiScale);
+  ctx.fillRect(-width / 2 + 36 * uiScale, height / 2 - 17 * uiScale, width - 72 * uiScale, 3 * uiScale);
+
+  ctx.textAlign = "center";
+
+  ctx.font = `${18 * uiScale}px "Russo One", sans-serif`;
+  ctx.letterSpacing = "0.08em";
+  ctx.shadowBlur = 12 * uiScale;
+  ctx.fillStyle = "#ffe2a3";
+  ctx.fillText(world.synergyToast.subtitle, 0, -22 * uiScale);
+
+  ctx.font = `${42 * uiScale}px "Russo One", sans-serif`;
+  ctx.letterSpacing = "0.02em";
+
+  const titleGradient = ctx.createLinearGradient(0, -10 * uiScale, 0, 34 * uiScale);
+  titleGradient.addColorStop(0, "#fff4c2");
+  titleGradient.addColorStop(0.42, "#ffc84f");
+  titleGradient.addColorStop(1, "#b96b16");
+
+  ctx.lineWidth = 5 * uiScale;
+  ctx.strokeStyle = "rgba(68, 34, 4, 0.95)";
+  ctx.shadowColor = "rgba(255, 178, 45, 0.95)";
+  ctx.shadowBlur = 28 * uiScale;
+  ctx.strokeText(world.synergyToast.title, 0, 26 * uiScale);
+
+  ctx.fillStyle = titleGradient;
+  ctx.fillText(world.synergyToast.title, 0, 26 * uiScale);
+
+  ctx.shadowBlur = 0;
+  ctx.lineWidth = 1.5 * uiScale;
+  ctx.strokeStyle = "rgba(255, 246, 195, 0.72)";
+  ctx.strokeText(world.synergyToast.title, 0, 26 * uiScale);
+
   ctx.restore();
 }
 
@@ -1485,7 +1927,9 @@ function render() {
   drawPlayer();
   ctx.restore();
   drawUi();
+  drawBossHealthBar();
   drawBanner();
+  drawBossWarning();
   drawSynergyToast();
 }
 

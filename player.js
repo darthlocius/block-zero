@@ -13,6 +13,7 @@ import {
   updateActorFacing,
   playerAnimationState,
   syncHud,
+  trackWeaponChangedForAchievements,
 } from "./game.js";
 import { moveActor } from "./collision.js";
 import { shoot } from "./bullet.js";
@@ -35,7 +36,16 @@ function resetWeaponPickupHold() {
 
 function applyPickup(pickup) {
   if (pickup.type.startsWith("weapon-")) {
+    const previousWeapon = player.weapon;
     player.weapon = pickup.type.replace("weapon-", "");
+    if (player.weapon !== previousWeapon) {
+      trackWeaponChangedForAchievements(player.weapon);
+    }
+
+    if (!world.weaponsUsed.includes(player.weapon)) {
+      world.weaponsUsed.push(player.weapon);
+    }
+
     banner(currentWeapon().label.toUpperCase(), t("banner.weaponPickup.subtitle"), 1.3, "#86f7ff");
     syncHud();
   } else if (pickup.type === "med") {
