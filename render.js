@@ -5,6 +5,7 @@
   player,
   world,
   TAU,
+  GRENADE_CONFIG,
   clamp,
   currentWeapon,
   enemiesRemainingForDisplay,
@@ -20,6 +21,7 @@
   playerFrameFor,
   enemyFrameFor,
 } from "./game.js";
+import { TECHPRIEST_SIGNAL_WAVE } from "./enemy.js";
 import { t } from "./i18n.js";
 
 // Canvas rendering for the world, actors, effects, and HUD.
@@ -281,6 +283,235 @@ function drawGroundEffects() {
     ctx.fill();
   }
   ctx.restore();
+}
+
+function drawGrenadeLandingMarkers() {
+  for (const grenade of world.grenades) {
+    if (!isWorldCircleVisible(grenade.targetX, grenade.targetY, 26)) continue;
+
+    const pulse = 0.5 + Math.sin(grenade.pulse) * 0.5;
+    const radius = 18 + pulse * 4;
+
+    ctx.save();
+    ctx.globalAlpha = 0.38 + pulse * 0.2;
+    ctx.strokeStyle = "#9cff2f";
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath();
+    ctx.arc(grenade.targetX, grenade.targetY, radius, 0, TAU);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.globalAlpha = 0.38 + pulse * 0.24;
+    ctx.fillStyle = "#caff91";
+    ctx.beginPath();
+    ctx.arc(grenade.targetX, grenade.targetY, 2.2, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawTechpriestSignalTelegraphs() {
+  const now = performance.now();
+
+  for (const foe of world.foes) {
+    if (
+      foe.id !== "techpriest"
+      || foe.hp <= 0
+      || foe.techpriestWaveCharging !== true
+    ) {
+      continue;
+    }
+
+    if (
+      !isWorldCircleVisible(
+        foe.x,
+        foe.y,
+        TECHPRIEST_SIGNAL_WAVE.radius,
+        40,
+      )
+    ) {
+      continue;
+    }
+
+    const duration = Math.max(
+      0.001,
+      foe.techpriestWaveChargeDuration
+        || TECHPRIEST_SIGNAL_WAVE.telegraphDuration,
+    );
+    const progress = clamp(
+      1 - foe.techpriestWaveChargeTimer / duration,
+      0,
+      1,
+    );
+    const pulse = (
+      0.5
+      + Math.sin(
+        now * 0.018
+        + (foe.techpriestWaveChargeSeed || 0),
+      ) * 0.5
+    );
+    const finalFlicker = progress > 0.8
+      ? 0.5 + Math.sin(now * 0.055) * 0.5
+      : 0;
+
+    ctx.save();
+
+    ctx.globalAlpha = 0.018 + progress * 0.022;
+    ctx.fillStyle = "#7cff4f";
+    ctx.beginPath();
+    ctx.arc(
+      foe.x,
+      foe.y,
+      TECHPRIEST_SIGNAL_WAVE.radius,
+      0,
+      TAU,
+    );
+    ctx.fill();
+
+    ctx.globalAlpha = 0.16 + progress * 0.24 + pulse * 0.05;
+    ctx.strokeStyle = "#9cff2f";
+    ctx.lineWidth = 2.2 + progress * 1.4;
+    ctx.setLineDash([14, 10]);
+    ctx.lineDashOffset = -now * 0.025;
+    ctx.beginPath();
+    ctx.arc(
+      foe.x,
+      foe.y,
+      TECHPRIEST_SIGNAL_WAVE.radius,
+      0,
+      TAU,
+    );
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const innerRadius = 118 - progress * 76 + pulse * 5;
+    ctx.globalAlpha = (
+      0.34
+      + progress * 0.4
+      + pulse * 0.08
+      + finalFlicker * 0.16
+    );
+    ctx.strokeStyle = "#8ef3ff";
+    ctx.lineWidth = 2.4 + progress * 3.4;
+    ctx.beginPath();
+    ctx.arc(foe.x, foe.y, innerRadius, 0, TAU);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#9cff2f";
+    ctx.lineWidth = 1.6 + progress * 2.2;
+    for (let i = 0; i < 4; i += 1) {
+      const angle = (
+        foe.techpriestWaveChargeSeed
+        + i * TAU / 4
+        + now * 0.00045
+      );
+      ctx.beginPath();
+      ctx.arc(
+        foe.x,
+        foe.y,
+        innerRadius + 16,
+        angle,
+        angle + 0.46 + progress * 0.18,
+      );
+      ctx.stroke();
+    }
+
+    if (progress > 0.78) {
+      const glowRadius = 24 + progress * 24 + finalFlicker * 6;
+      const glow = ctx.createRadialGradient(
+        foe.x,
+        foe.y,
+        0,
+        foe.x,
+        foe.y,
+        glowRadius,
+      );
+      glow.addColorStop(
+        0,
+        `rgba(202, 255, 145, ${0.22 + finalFlicker * 0.18})`,
+      );
+      glow.addColorStop(0.45, "rgba(116, 255, 77, 0.12)");
+      glow.addColorStop(1, "rgba(116, 255, 77, 0)");
+      ctx.globalAlpha = 0.72;
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(foe.x, foe.y, glowRadius, 0, TAU);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+}
+
+function drawGrenades() {
+  for (const grenade of world.grenades) {
+    if (!isWorldCircleVisible(grenade.x, grenade.y, 34)) continue;
+
+    const heightRatio = clamp(
+      grenade.height / GRENADE_CONFIG.arcHeight,
+      0,
+      1,
+    );
+    const drawY = grenade.y - grenade.height * 0.38;
+
+    ctx.save();
+    ctx.globalAlpha = 0.3 * (1 - heightRatio * 0.55);
+    ctx.fillStyle = "#020504";
+    ctx.beginPath();
+    ctx.ellipse(
+      grenade.x,
+      grenade.y + 3,
+      8.5 - heightRatio * 2.8,
+      4.2 - heightRatio * 1.3,
+      0,
+      0,
+      TAU,
+    );
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(grenade.x, drawY);
+    ctx.rotate(grenade.rotation);
+
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, 13);
+    glow.addColorStop(0, "rgba(156, 255, 47, 0.2)");
+    glow.addColorStop(0.42, "rgba(116, 255, 77, 0.08)");
+    glow.addColorStop(1, "rgba(116, 255, 77, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, 13, 0, TAU);
+    ctx.fill();
+
+    roundRect(-6, -8, 12, 16, 4);
+    ctx.fillStyle = "#171d1b";
+    ctx.fill();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = "#77817d";
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(206, 218, 212, 0.22)";
+    ctx.fillRect(-3.8, -6.2, 1.6, 11.8);
+
+    ctx.fillStyle = "#9cff2f";
+    ctx.fillRect(-6.2, -1.4, 12.4, 2.8);
+    ctx.fillStyle = "rgba(218, 255, 180, 0.82)";
+    ctx.fillRect(-5.2, -0.7, 10.4, 0.8);
+
+    ctx.fillStyle = "#3f4945";
+    ctx.fillRect(-3.4, -10.2, 6.8, 2.6);
+    ctx.strokeStyle = "#89948f";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(-3.4, -10.2, 6.8, 2.6);
+
+    ctx.globalAlpha = 0.62 + Math.sin(grenade.pulse * 1.7) * 0.3;
+    ctx.fillStyle = "#ffab42";
+    ctx.beginPath();
+    ctx.arc(3.3, -5.1, 1.55, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 function drawDeathEffects() {
@@ -1917,12 +2148,15 @@ function render() {
   ctx.translate(-world.camera.x, -world.camera.y);
   drawTerrain();
   drawGroundEffects();
+  drawGrenadeLandingMarkers();
+  drawTechpriestSignalTelegraphs();
   drawDeathEffects();
   drawSolids();
   drawPickups();
   drawWeaponPickupPrompt();
   drawParticles();
   drawFoes();
+  drawGrenades();
   drawHunterDrone();
   drawPlayer();
   ctx.restore();

@@ -91,6 +91,7 @@ import {
 } from "./game.js";
 import { shoot, dash } from "./bullet.js";
 import { forceSpawnTechpriestNow } from "./enemy.js";
+import { throwGrenade } from "./grenade.js";
 import { setLanguage, t } from "./i18n.js";
 
 // Input wiring and audio UI controls.
@@ -393,11 +394,30 @@ function initInput() {
       return;
     }
     const textInput = isTextInputTarget(event.target);
-    const key = normalizedControlKey(event);
 
     if (textInput) {
       return;
     }
+
+    if (
+      event.code === "KeyG"
+      && world.state === "playing"
+    ) {
+      event.preventDefault();
+
+      if (
+        !event.repeat
+        && !event.ctrlKey
+        && !event.altKey
+        && !event.metaKey
+      ) {
+        throwGrenade();
+      }
+
+      return;
+    }
+
+    const key = normalizedControlKey(event);
 
     world.keys.add(key);
 

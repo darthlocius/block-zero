@@ -31,6 +31,7 @@
 import { projectile } from "./bullet.js";
 import { t } from "./i18n.js";
 import { moveActor } from "./collision.js";
+import { restockGrenadeAtWaveStart } from "./grenade.js";
 
 // Enemy spawning, waves, and AI behavior.
 
@@ -53,11 +54,24 @@ const TECHPRIEST_SPAWN = {
   spawnAtMax: 0.36,
 };
 
-const TECHPRIEST_SIGNAL_WAVE = {
-  radius: 620,
+const TECHPRIEST_SIGNAL_WAVE = Object.freeze({
+  radius: 500,
+  innerFullDamageRadius: 180,
+  edgeDamageRatio: 0.4,
+
   baseDamage: 18,
   damagePerWave: 0.8,
-};
+
+  telegraphDuration: 0.85,
+
+  firstCooldownMin: 2.2,
+  firstCooldownMax: 2.8,
+
+  repeatCooldownMin: 4.0,
+  repeatCooldownMax: 5.2,
+
+  chargeMoveMultiplier: 0.55,
+});
 
 function techpriestChanceForWave(wave) {
   if (wave < TECHPRIEST_SPAWN.firstWave) return 0;
@@ -480,6 +494,7 @@ function makeFoe(template, x, y, extra = {}) {
 
 function beginWave() {
   world.wave += 1;
+  restockGrenadeAtWaveStart();
   world.currentWave = createWave(world.wave);
   trackWaveStartedForAchievements();
   world.state = "playing";
@@ -566,7 +581,14 @@ function spawnTechpriest() {
   foe.shieldHp = Math.round(hp * base.shieldRatio);
   foe.maxShieldHp = foe.shieldHp;
   foe.armorReduction = base.armorReduction;
-  foe.techpriestWaveTimer = rand(1.2, 1.8);
+  foe.techpriestWaveTimer = rand(
+    TECHPRIEST_SIGNAL_WAVE.firstCooldownMin,
+    TECHPRIEST_SIGNAL_WAVE.firstCooldownMax,
+  );
+  foe.techpriestWaveCharging = false;
+  foe.techpriestWaveChargeTimer = 0;
+  foe.techpriestWaveChargeDuration = TECHPRIEST_SIGNAL_WAVE.telegraphDuration;
+  foe.techpriestWaveChargeSeed = Math.random() * TAU;
   foe.techpriestBurstShots = 0;
   foe.techpriestBurstTimer = 0;
   foe.techpriestCaster = true;
@@ -715,6 +737,29 @@ function updateWave(dt) {
   if (done) intermission();
 }
 
+function startTechpriestSignalCharge(foe) {
+  if (!foe || foe.hp <= 0) return;
+  if (foe.techpriestWaveCharging) return;
+
+  foe.techpriestWaveCharging = true;
+  foe.techpriestWaveChargeTimer = TECHPRIEST_SIGNAL_WAVE.telegraphDuration;
+  foe.techpriestWaveChargeDuration = TECHPRIEST_SIGNAL_WAVE.telegraphDuration;
+  foe.techpriestWaveChargeSeed = Math.random() * TAU;
+
+  foe.techpriestBurstShots = 0;
+  foe.techpriestBurstTimer = 0;
+
+  audio.techpriestWaveCharge();
+
+  pushBlastGlow(
+    foe.x,
+    foe.y,
+    120,
+    "rgba(116, 255, 77, 0.18)",
+    0.32,
+  );
+}
+
 function triggerTechpriestSignalWave(foe) {
   pushParticle({
     x: foe.x,
@@ -736,13 +781,14 @@ function triggerTechpriestSignalWave(foe) {
     vy: 0,
     life: 0.68,
     size: 20,
-    sizeEnd: 455,
+    sizeEnd: 350,
     color: "rgba(142, 243, 255, 0.42)",
     type: "shockwave",
     lineWidth: 5,
   });
 
   pushBlastGlow(foe.x, foe.y, 280, "rgba(116, 255, 77, 0.34)", 0.48);
+  audio.techpriestWaveImpact();
 
   const bolts = 9;
   for (let i = 0; i < bolts; i += 1) {
@@ -771,22 +817,72 @@ function triggerTechpriestSignalWave(foe) {
   const distanceToPlayer = Math.hypot(dx, dy);
 
   if (distanceToPlayer <= TECHPRIEST_SIGNAL_WAVE.radius) {
-    const waveDamage = Math.round(
+    const fullDamage = Math.round(
       TECHPRIEST_SIGNAL_WAVE.baseDamage
       + world.wave * TECHPRIEST_SIGNAL_WAVE.damagePerWave,
+    );
+    let damageFactor = 1;
+
+    if (distanceToPlayer > TECHPRIEST_SIGNAL_WAVE.innerFullDamageRadius) {
+      const falloffRange = (
+        TECHPRIEST_SIGNAL_WAVE.radius
+        - TECHPRIEST_SIGNAL_WAVE.innerFullDamageRadius
+      );
+      const falloffProgress = clamp(
+        (
+          distanceToPlayer
+          - TECHPRIEST_SIGNAL_WAVE.innerFullDamageRadius
+        ) / falloffRange,
+        0,
+        1,
+      );
+
+      damageFactor = (
+        1
+        - (1 - TECHPRIEST_SIGNAL_WAVE.edgeDamageRatio) * falloffProgress
+      );
+    }
+
+    const waveDamage = Math.max(
+      1,
+      Math.round(fullDamage * damageFactor),
     );
 
     damagePlayer(waveDamage, {
       source: "techpriest_wave",
     });
 
-    addScreenShake(0.18);
+    addScreenShake(0.2);
   }
 }
 
 function updateTechpriest(foe, dt, len, nx, ny, tx, ty, dx, dy) {
-  foe.techpriestWaveTimer = Math.max(0, (foe.techpriestWaveTimer || 0) - dt);
   foe.techpriestBurstTimer = Math.max(0, (foe.techpriestBurstTimer || 0) - dt);
+
+  if (foe.techpriestWaveCharging) {
+    foe.techpriestWaveChargeTimer = Math.max(
+      0,
+      (foe.techpriestWaveChargeTimer || 0) - dt,
+    );
+
+    if (foe.techpriestWaveChargeTimer <= 0) {
+      foe.techpriestWaveCharging = false;
+      triggerTechpriestSignalWave(foe);
+      foe.techpriestWaveTimer = rand(
+        TECHPRIEST_SIGNAL_WAVE.repeatCooldownMin,
+        TECHPRIEST_SIGNAL_WAVE.repeatCooldownMax,
+      );
+    }
+  } else {
+    foe.techpriestWaveTimer = Math.max(
+      0,
+      (foe.techpriestWaveTimer || 0) - dt,
+    );
+
+    if (foe.techpriestWaveTimer <= 0) {
+      startTechpriestSignalCharge(foe);
+    }
+  }
 
   const desiredMin = 320;
   const desiredMax = 520;
@@ -819,13 +915,21 @@ function updateTechpriest(foe, dt, len, nx, ny, tx, ty, dx, dy) {
   if (foe.y < edgePadding) vy += edgeForce * (1 - foe.y / edgePadding);
   else if (foe.y > world.height - edgePadding) vy -= edgeForce * (1 - (world.height - foe.y) / edgePadding);
 
-  if (len < 720 && foe.attackTimer <= 0) {
+  if (
+    !foe.techpriestWaveCharging
+    && len < 720
+    && foe.attackTimer <= 0
+  ) {
     foe.attackTimer = foe.attackCooldown;
     foe.techpriestBurstShots = 5;
     foe.techpriestBurstTimer = 0;
   }
 
-  if (foe.techpriestBurstShots > 0 && foe.techpriestBurstTimer <= 0) {
+  if (
+    !foe.techpriestWaveCharging
+    && foe.techpriestBurstShots > 0
+    && foe.techpriestBurstTimer <= 0
+  ) {
     foe.techpriestBurstShots -= 1;
     foe.techpriestBurstTimer = 0.065;
 
@@ -841,17 +945,15 @@ function updateTechpriest(foe, dt, len, nx, ny, tx, ty, dx, dy) {
     audio.attack("criminal");
   }
 
-  if (foe.techpriestWaveTimer <= 0) {
-    foe.techpriestWaveTimer = rand(3.0, 4.2);
-    triggerTechpriestSignalWave(foe);
-  }
-
   foe.knockbackX *= Math.max(0, 1 - dt * 7.5);
   foe.knockbackY *= Math.max(0, 1 - dt * 7.5);
 
   const slowMultiplier = foe.slowTimer > 0 ? 0.58 : 1;
-  vx = vx * slowMultiplier + foe.knockbackX;
-  vy = vy * slowMultiplier + foe.knockbackY;
+  const chargeMoveMultiplier = foe.techpriestWaveCharging
+    ? TECHPRIEST_SIGNAL_WAVE.chargeMoveMultiplier
+    : 1;
+  vx = vx * slowMultiplier * chargeMoveMultiplier + foe.knockbackX;
+  vy = vy * slowMultiplier * chargeMoveMultiplier + foe.knockbackY;
 
   foe.isMoving = Math.hypot(vx, vy) > 2;
   foe.animTime += dt * (foe.isMoving ? 1 : 0.7);
@@ -1084,6 +1186,8 @@ function cleanupDeadFoes() {
   for (const foe of world.foes) {
     if (foe.hp <= 0) {
       if (foe.id === "techpriest") {
+        foe.techpriestWaveCharging = false;
+        foe.techpriestWaveChargeTimer = 0;
         removeTechpriestBuffFromWave(true);
       }
       awardKill(foe);
@@ -1103,6 +1207,7 @@ function updateFoes(dt) {
 }
 
 export {
+  TECHPRIEST_SIGNAL_WAVE,
   createWave,
   spawnPoint,
   makeFoe,

@@ -9,7 +9,7 @@ This is the author's first serious game project. A future Steam release is a pos
 ## 2. Current build
 
 ```text
-Current version: 0.6.0-alpha
+Current version: 0.7.1-alpha
 Development status: Alpha
 ```
 
@@ -98,12 +98,27 @@ Gameplay controls use physical `event.code` mappings where layout independence m
 - Left mouse button or `Space` — fire.
 - Left or right `Shift` — dash in the current movement direction; dash requires movement input and has a cooldown.
 - Hold `E` (`KeyE`) near a weapon pickup — equip it. The current hold duration is 0.35 seconds and the interaction radius is 56 world units.
+- `G` (`KeyG`) — throw a targeted impact grenade toward the world-space cursor.
 - `Esc` — pause/resume an active run, close the topmost menu overlay, return from results, or confirm the finished death sequence where applicable.
 - Fullscreen — UI buttons only.
 
 The pointer is converted from CSS pixels into real canvas coordinates, then into camera-relative world coordinates. Preserve this path when changing layout or fullscreen code.
 
-## 8. Current stable systems
+## 8. Targeted impact grenades
+
+- Grenade input uses the physical `event.code === "KeyG"`, so the same physical key works under EN and RU layouts.
+- A new run starts with 3 charges, the maximum inventory is 3, and one charge is restored at the start of every wave after the first when the inventory is not full.
+- The target is calculated from `world.pointer` in world coordinates and clamped to a maximum throw range of 720 world units.
+- Flight uses a visible ballistic arc with a landing marker; grenades ignore enemies and solids until exploding at the calculated landing point.
+- The explosion radius is 230 world units with 460 center damage and linear falloff to 45% damage at the edge.
+- Bosses receive 30% grenade damage. The Tech-Priest is not given a special damage modifier: its existing shield and armor remain authoritative through `applyDamageToFoe(...)`.
+- Grenades damage destructible cover through `damageSolid(...)`, including barrels and their existing secondary explosions.
+- The grenade itself causes no direct self-damage. A barrel detonated by a grenade can still damage the player under the existing explosion rules.
+- Grenade kills use the normal `cleanupDeadFoes()` and `awardKill(...)` path and remain eligible for honest achievements and statistics.
+- Grenade inventory and in-flight state are run-local and are not written to `localStorage`.
+- There are no grenade meta-upgrades and no random grenade pickups in this build.
+
+## 9. Current stable systems
 
 The current build includes:
 
@@ -122,10 +137,11 @@ The current build includes:
 - motion radar and enemies-remaining display;
 - automatic consumable pickups and hold-to-equip weapon pickups;
 - Hunter Drone support;
+- targeted impact grenades with a three-charge HUD inventory;
 - destructible cover, crates, and explosive barrels;
 - eight rotating battle music tracks.
 
-## 9. Weapons
+## 10. Weapons
 
 There are four active weapon definitions:
 
@@ -136,7 +152,7 @@ There are four active weapon definitions:
 
 The player has one active weapon at a time; there are no weapon slots. Weapon pickups are not auto-equipped and require holding `E`. The internal `ARMORY` protocol creates nearby pickups for the three non-default weapons; it does not grant multiple simultaneously active weapons.
 
-## 10. Enemies
+## 11. Enemies
 
 - **Hellhound** (`animal`) — fast melee pursuer that closes on the player and attacks at contact range.
 - **Orb** (`monster`) — slower ranged enemy that tries to keep distance and fires explosive projectiles.
@@ -153,7 +169,7 @@ The player has one active weapon at a time; there are no weapon slots. Weapon pi
 - Spawns partway through the regular wave roster and immediately empowers eligible living allies; later spawns are empowered while the support effect remains active.
 - Empowerment increases HP, damage, ranged attack pressure, and melee pressure.
 - Uses a shield equal to 115% of its scaled HP and then 30% armor damage reduction after the shield breaks.
-- Fires five-shot blaster bursts and periodically emits a signal wave that damages the player within its radius.
+- Fires five-shot blaster bursts and periodically charges a telegraphed signal wave.
 - Its death removes empowerment from surviving enemies.
 - Its death always produces at least one guaranteed pickup, with chances for extra guaranteed loot and a weapon pickup.
 - The current balance is considered successful and should not be changed incidentally.
@@ -169,15 +185,32 @@ Melee speed multiplier: 1.14
 Melee cooldown multiplier: 0.68
 ```
 
+#### Tech-Priest Signal Wave
+
 Signal-wave parameters:
 
 ```text
-Radius: 620
+Radius: 500
+Inner full-damage radius: 180
+Edge damage ratio: 0.40
 Base damage: 18
 Damage per wave: 0.8
+Telegraph duration: 0.85 seconds
+First cooldown: 2.2–2.8 seconds before telegraph
+Repeat cooldown: 4.0–5.2 seconds before telegraph
+Charge movement multiplier: 0.55
 ```
 
-## 11. Bosses
+- Signal-wave damage occurs only after the telegraph completes.
+- The player's current position is evaluated at the instant of impact, so the player can leave the marked area before the wave is released.
+- Damage remains full within 180 world units, falls off linearly toward the edge, and reaches 40% at 500 world units.
+- The charge warning and impact sounds are synthesized through the existing Web Audio API and obey SFX volume.
+- The Tech-Priest stops firing and moves at 55% of its ordinary movement speed while charging, but remains damageable with its existing shield and armor.
+- Killing the Tech-Priest during the telegraph cancels the pending impact.
+- Cover does not currently block the signal wave.
+- Maximum close-range damage remains unchanged.
+
+## 12. Bosses
 
 Boss waves occur every fourth wave. The following three templates rotate cyclically:
 
@@ -187,7 +220,7 @@ Boss waves occur every fourth wave. The following three templates rotate cyclica
 
 Boss waves display a warning, an HP bar, and a defeated banner. They do not allow a Tech-Priest. Current bosses have distinct attacks and summoning behavior, but their behavior depth is still intended to expand in a later Enemy Evolution stage.
 
-## 12. Wave progression
+## 13. Wave progression
 
 - Runs start with an intermission, then advance through numbered survival waves.
 - Enemy totals, spawn cadence, HP, damage, and some movement scale with wave number.
@@ -198,7 +231,7 @@ Boss waves display a warning, an HP bar, and a defeated banner. They do not allo
 - Clearing a wave starts a short clear sequence followed by augment selection and the next intermission.
 - There is no final victory and no fully role-based Wave Director yet.
 
-## 13. Wave bonuses
+## 14. Wave bonuses
 
 The current `waveBonuses` registry contains **33** `createWaveBonus(...)` entries. Bonuses have rarity, weighting, tags, localized title/description data, and availability conditions where relevant. The system supports:
 
@@ -211,7 +244,7 @@ The current `waveBonuses` registry contains **33** `createWaveBonus(...)` entrie
 
 Do not duplicate all bonus definitions in documentation; `game.js` remains the source of truth for their exact effects.
 
-## 14. Synergies
+## 15. Synergies
 
 There are five current synergies:
 
@@ -229,13 +262,13 @@ Target frequency for build feel:
 - two are realistic;
 - three are possible in a lucky, coherent build.
 
-## 15. Meta progression
+## 16. Meta progression
 
 There are **17** permanent `metaUpgrades`: 11 in the General/Tactical Protocols group and 6 in Armory. They cover core stats, pickup and perk behavior, reroll/selection/scanner utilities, and weapon-wide Armory modifiers.
 
 Meta progression uses credits, upgrade levels/costs, lifetime run statistics, and `block-zero-meta-v1` persistence. Never reset credits, levels, or saved statistics without an explicit request. Preserve all existing costs and effects unless a dedicated balance task says otherwise.
 
-## 16. Achievements
+## 17. Achievements
 
 The game has **16** achievements. They are stored separately under `block-zero-achievements-v1` and use:
 
@@ -247,7 +280,7 @@ The game has **16** achievements. They are stored separately under `block-zero-a
 
 Achievements give no gameplay rewards. Once a run becomes cheated, the pre-run achievement snapshot is restored, further tracking is blocked, and unlock persistence is not allowed for that run.
 
-## 17. Hall of Fame and run summary
+## 18. Hall of Fame and run summary
 
 New run results carry:
 
@@ -261,7 +294,7 @@ New run results carry:
 
 Saved Hall of Fame entries also contain player name and timestamp. Loading normalizes old entries that lack newer fields, and detail rendering avoids duplicating a one-item weapon list. Cheated runs cannot be submitted to Hall of Fame. Their earnings and lifetime-stat updates are blocked, and achievement progress is rolled back. After death, abort, or return to menu clears the active run cheats, the next normal run is honest again.
 
-## 18. Forbidden Protocols — INTERNAL ONLY
+## 19. Forbidden Protocols — INTERNAL ONLY
 
 This section is for the developer and Codex. Do not copy these codes into public documentation.
 
@@ -292,7 +325,7 @@ NUKE
 - Active run cheats are cleared after death results, abort, or return to the main menu.
 - `RICHMAN` is the one non-run credit utility code: it adds 1000 credits and does not set cheated status.
 
-## 19. Rendering and performance
+## 20. Rendering and performance
 
 - Fullscreen and windowed changes resize the real canvas and synchronize camera dimensions.
 - The camera follows the player inside world bounds; render transforms world coordinates into the current camera view.
@@ -302,7 +335,7 @@ NUKE
 - Effects should remain readable and should not introduce mass heavy `shadowBlur` work.
 - Tech-Priest empowerment uses a cached glow sprite and an arc-render budget. This is a performant but artistically provisional solution.
 
-## 20. Known limitations and technical debt
+## 21. Known limitations and technical debt
 
 - No Victory Screen or real victory condition; runs are effectively endless.
 - One primary battlefield layout.
@@ -316,10 +349,11 @@ NUKE
 - Some old internal Russian strings remain in content definitions even though visible UI paths are localized through `i18n.js`.
 - Documentation had drifted before this checkpoint; future changes must update this context and README alongside the implementation.
 
-## 21. Current roadmap
+## 22. Current roadmap
 
 ### Stage 0 — Current checkpoint
 
+- targeted impact grenades added before Enemy Evolution work resumes;
 - documentation audit;
 - centralized build version and visible menu label;
 - internal release checklist;
@@ -361,7 +395,7 @@ Do not add a separate Summoner to the roadmap. The Tech-Priest of the Swarm alre
 - possible Coming Soon page;
 - decide between Early Access and a full release path.
 
-## 22. Codex workflow
+## 23. Codex workflow
 
 - Work on one concrete patch at a time.
 - Inspect actual code before editing; do not treat old documentation as the only source of truth.

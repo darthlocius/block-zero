@@ -31,6 +31,8 @@ const scoreValue = document.getElementById("scoreValue");
 const waveValue = document.getElementById("waveValue");
 const comboValue = document.getElementById("comboValue");
 const weaponValue = document.getElementById("weaponValue");
+const grenadeHud = document.getElementById("grenadeHud");
+const grenadeValue = document.getElementById("grenadeValue");
 const boostsBar = document.getElementById("boostsBar");
 const waveBonusBadge = document.getElementById("waveBonusBadge");
 const synergyPanel = document.getElementById("synergyPanel");
@@ -116,6 +118,29 @@ const LEADERBOARD_KEY = "block-zero-leaderboard-v1";
 const LEADERBOARD_NAME_KEY = "block-zero-player-name";
 const META_PROGRESS_KEY = "block-zero-meta-v1";
 const ACHIEVEMENTS_STORAGE_KEY = "block-zero-achievements-v1";
+
+const GRENADE_CONFIG = Object.freeze({
+  maxCharges: 3,
+  maxRange: 720,
+  cooldown: 0.55,
+
+  flightBase: 0.32,
+  flightDistanceDivisor: 1450,
+  minFlightTime: 0.42,
+  maxFlightTime: 0.82,
+  arcHeight: 112,
+
+  explosionRadius: 230,
+  baseDamage: 460,
+  edgeDamageRatio: 0.45,
+
+  bossDamageMultiplier: 0.30,
+  destructibleDamageMultiplier: 0.65,
+
+  knockbackForce: 280,
+  techpriestKnockbackMultiplier: 0.45,
+  bossKnockbackMultiplier: 0.20,
+});
 
 const achievementDefinitions = [
   { id: "first_blood", iconIndex: 0, progressType: "counter", counter: "kills", target: 1 },
@@ -577,6 +602,12 @@ const world = {
   pointerScreen: { x: canvas.width / 2, y: canvas.height / 2 },
   pointer: { x: canvas.width / 2, y: canvas.height / 2, down: false },
   bullets: [],
+  grenades: [],
+  grenadeCount: GRENADE_CONFIG.maxCharges,
+  grenadeMax: GRENADE_CONFIG.maxCharges,
+  grenadeCooldown: 0,
+  grenadeHudPulse: 0,
+  grenadeHudEmptyPulse: 0,
   enemyShots: [],
   foes: [],
   particles: [],
@@ -2182,6 +2213,7 @@ function chooseWaveBonus(id) {
 function startDeathSequence() {
   finalizeRunMetaProgress();
   world.state = "death_sequence";
+  world.grenades = [];
   world.deathSequenceTimer = 2.45;
   world.deathSequenceReadyForClick = false;
   world.deathOverlayAlpha = 0;
@@ -2593,6 +2625,88 @@ function audioManager() {
       if (assets.playAudio("explosion", this.volumes.master * this.volumes.sfx)) return;
       this.burst(0.35, 0.05, { frequency: 160, q: 0.6, bus: "sfx" });
       this.tone(90, 0.32, "sawtooth", 0.03, { slideTo: 45, filter: { frequency: 280 }, bus: "sfx" });
+    },
+    techpriestWaveCharge() {
+      this.tone(
+        180,
+        0.38,
+        "sawtooth",
+        0.026,
+        {
+          slideTo: 520,
+          filter: {
+            type: "bandpass",
+            frequency: 1100,
+            q: 1.3,
+          },
+          bus: "sfx",
+        },
+      );
+      this.tone(
+        92,
+        0.42,
+        "triangle",
+        0.02,
+        {
+          slideTo: 145,
+          filter: {
+            type: "lowpass",
+            frequency: 320,
+            q: 0.9,
+          },
+          bus: "sfx",
+        },
+      );
+      this.burst(
+        0.08,
+        0.013,
+        {
+          frequency: 2100,
+          q: 2.1,
+          bus: "sfx",
+        },
+      );
+    },
+    techpriestWaveImpact() {
+      this.burst(
+        0.3,
+        0.045,
+        {
+          frequency: 170,
+          q: 0.65,
+          bus: "sfx",
+        },
+      );
+      this.tone(
+        105,
+        0.34,
+        "sawtooth",
+        0.038,
+        {
+          slideTo: 42,
+          filter: {
+            type: "lowpass",
+            frequency: 420,
+            q: 0.9,
+          },
+          bus: "sfx",
+        },
+      );
+      this.tone(
+        860,
+        0.15,
+        "square",
+        0.017,
+        {
+          slideTo: 260,
+          filter: {
+            type: "bandpass",
+            frequency: 2200,
+            q: 1.3,
+          },
+          bus: "sfx",
+        },
+      );
     },
     wave(bossWave) {
       this.tone(392, 0.2, "triangle", 0.03, { bus: "sfx" });
@@ -3894,6 +4008,7 @@ function abortRunToSummary() {
   world.pointer.down = false;
   world.enemyShots = [];
   world.bullets = [];
+  world.grenades = [];
   clearAnnouncements();
 
   audio.setMode("menu");
@@ -3983,6 +4098,7 @@ function syncMainMenuAudioState() {
 function showMainMenu() {
   clearActiveRunCheats();
   world.state = "menu";
+  world.grenades = [];
   forceClosePauseMenu();
   world.resultOverlayKind = null;
   clearAnnouncements();
@@ -4532,6 +4648,28 @@ function syncHud() {
   waveValue.textContent = world.wave || 1;
   comboValue.textContent = `x${world.combo.toFixed(1)}`;
   weaponValue.textContent = currentWeapon().label;
+  const grenadeHudVisible = isActiveRunState(world.state)
+    || (
+      world.state === "paused"
+      && isActiveRunState(world.stateBeforePause)
+    );
+  grenadeHud?.classList.toggle("hidden", !grenadeHudVisible);
+  if (grenadeValue) {
+    grenadeValue.textContent = `×${world.grenadeCount}`;
+  }
+  grenadeHud?.classList.toggle("is-empty", world.grenadeCount <= 0);
+  grenadeHud?.classList.toggle("is-pulsing", world.grenadeHudPulse > 0);
+  grenadeHud?.classList.toggle(
+    "is-empty-pulsing",
+    world.grenadeHudEmptyPulse > 0,
+  );
+  grenadeHud?.setAttribute(
+    "aria-label",
+    t("ui.grenadesCount", {
+      count: world.grenadeCount,
+      max: world.grenadeMax,
+    }),
+  );
   if (waveBonusBadge) {
     const activeBonus = currentWaveBonusData();
     if (activeBonus) {
@@ -4759,6 +4897,12 @@ function menuOverlay() {
 function resetGame() {
   clearActiveRunCheats();
   world.bullets = [];
+  world.grenades = [];
+  world.grenadeCount = GRENADE_CONFIG.maxCharges;
+  world.grenadeMax = GRENADE_CONFIG.maxCharges;
+  world.grenadeCooldown = 0;
+  world.grenadeHudPulse = 0;
+  world.grenadeHudEmptyPulse = 0;
   world.enemyShots = [];
   world.foes = [];
   world.particles = [];
@@ -5504,6 +5648,7 @@ export {
   DEFAULT_CANVAS_WIDTH,
   DEFAULT_CANVAS_HEIGHT,
   TAU,
+  GRENADE_CONFIG,
   enemies,
   bosses,
   solids,

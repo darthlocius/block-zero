@@ -41,6 +41,10 @@
           <span data-i18n="controls.dash">Dash</span>
           <strong>Shift</strong>
         </div>
+        <div>
+          <span data-i18n="controls.grenade">Impact grenade</span>
+          <strong data-i18n="controls.grenadeKeys">G</strong>
+        </div>
       </div>
 
       <div class="profile-strip">
@@ -142,6 +146,7 @@
             <div><span data-i18n="controls.fire">Fire</span><strong data-i18n="controls.fireKeys">LMB / space</strong></div>
             <div><span data-i18n="controls.dash">Dash</span><strong data-i18n="controls.dashKeys">Shift</strong></div>
             <div><span data-i18n="controls.weaponPickup">Equip weapon</span><strong data-i18n="controls.weaponPickupKeys">Hold E</strong></div>
+            <div><span data-i18n="controls.grenade">Impact grenade</span><strong data-i18n="controls.grenadeKeys">G</strong></div>
           </div>
         </div>
       </div>
@@ -188,6 +193,16 @@
             <div id="waveBonusBadge" class="wave-bonus-badge hidden" aria-live="polite"></div>
             <div id="synergyPanel" class="synergy-panel" aria-live="polite"></div>
           </div>
+        </div>
+
+        <div
+          id="grenadeHud"
+          class="grenade-hud hidden"
+          aria-live="polite"
+        >
+          <span class="grenade-hud-icon" aria-hidden="true"></span>
+          <span class="grenade-hud-key" aria-hidden="true">G</span>
+          <strong id="grenadeValue" class="grenade-hud-value">×3</strong>
         </div>
 
         <div id="waveClearOverlay" class="cinematic-overlay wave-clear-overlay" aria-live="polite">

@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.7.1-alpha] — In Development
+
+### Changed
+
+- Reworked the Tech-Priest signal wave into a telegraphed attack.
+- Reduced signal-wave radius from 620 to 500.
+- Added distance-based damage falloff while preserving full close-range damage.
+- Delayed the first signal wave and increased the interval between repeated impacts.
+- The Tech-Priest stops firing and moves more slowly while charging the signal wave.
+- Signal-wave damage is now evaluated only when the charge completes.
+
+### Audio
+
+- Added a distinct synthesized warning sound for signal-wave charging.
+- Added a separate synthesized impact sound for the released wave.
+
+### Visuals
+
+- Added a visible ground-zone warning and inward energy-convergence effect.
+- The expanding impact ring now represents the actual completed attack rather than damage that already happened without warning.
+
+## [0.7.0-alpha] — In Development
+
+### Added
+
+- Targeted impact grenades thrown toward the world-space cursor with the G key.
+- Visible arcing flight, landing marker, impact explosion, and expanding shockwave.
+- Three-charge grenade inventory with one charge restored at the start of each wave after the first.
+- Bottom-left grenade counter integrated into the gameplay HUD.
+- Grenade damage against enemies, Tech-Priest shields, and destructible battlefield objects.
+
+### Balance
+
+- Three maximum grenade charges.
+- 460 center damage with distance falloff across a 230-unit radius.
+- Reduced grenade damage against bosses.
+- Grenades do not directly damage the player.
+
 ## [0.6.0-alpha] — Current Development Checkpoint
 
 ### Added

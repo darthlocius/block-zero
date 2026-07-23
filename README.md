@@ -1,6 +1,6 @@
 # Block Zero
 
-Current build: **v0.6.0-alpha**
+Current build: **v0.7.1-alpha**
 
 Block Zero is a browser-based top-down wave-survival shooter set in dark industrial ruins. Fight escalating enemy waves, switch weapons in the field, choose augments between waves, and assemble combat synergies while trying to survive as long as possible.
 
@@ -18,6 +18,7 @@ Block Zero is in alpha and active development. The main survival loop is playabl
 - Augment cards with rarity, rerolls, Expanded Selection, and Synergy Scanner
 - Five tag-driven combat synergies with guide and progress feedback
 - Hunter Drone support and field weapon pickups
+- Targeted impact grenades with arcing flight, area damage, and a limited three-charge inventory
 - Permanent General/Tactical Protocol and Armory upgrades
 - Sixteen achievements, Hall of Fame records, and detailed run summaries
 - Pause and death flows, plus hidden old-school Forbidden Protocols
@@ -34,13 +35,17 @@ The player uses one weapon at a time:
 
 Weapon pickups are not equipped automatically. Move close to one and hold `E` to switch.
 
+## Targeted impact grenades
+
+Press the physical `G` key to throw a grenade toward the world-space cursor. The target is limited to 720 world units and shown by a landing marker while the grenade travels along a visible arc. Its impact damages groups of enemies, respects the Tech-Priest's shield and armor, and can destroy cover or trigger explosive barrels. A run starts with three grenades and restores one charge at the beginning of each wave after the first, up to the maximum of three. The grenade itself does not directly damage the player.
+
 ## Enemies
 
 - **Hellhound** — fast melee pressure.
 - **Orb** — slower ranged attacker with explosive shots.
 - **Tank** — strafing ranged pressure.
 - **Swarm** — fragile melee creatures that arrive in packs.
-- **Tech-Priest of the Swarm** — a shielded support enemy that empowers its allies and emits a damaging signal wave.
+- **Tech-Priest of the Swarm** — a shielded support enemy that empowers its allies and emits a damaging signal wave. The wave now has a visible and audible telegraph, its damage falls off toward the edge, and the player can escape the marked area before impact.
 
 Every fourth wave is a boss wave. Three boss templates rotate through the run: Megabrain, Abomination/Biomass, and Warlord/Overlord.
 
@@ -57,6 +62,7 @@ Achievements are trophies only and do not grant gameplay rewards. Runs that use 
 - Left mouse button or `Space` — fire
 - `Shift` — dash while moving
 - Hold `E` near a weapon — equip it
+- `G` — throw a targeted impact grenade
 - `Esc` — pause/resume or close the current overlay
 - Fullscreen — use the fullscreen button in the UI
 
@@ -105,6 +111,7 @@ A possible Steam release is a long-term goal, not a scheduled commitment.
 - `main.js` — bootstrap and game loop orchestration
 - `game.js` — shared state, content definitions, progression, achievements, and run lifecycle
 - `input.js`, `player.js`, `enemy.js` — controls and actor behavior
+- `grenade.js` — targeted grenade flight, impact damage, effects, and wave refill
 - `bullet.js`, `collision.js` — projectiles, hits, destructibles, and explosions
 - `render.js` — canvas world and combat UI rendering
 - `i18n.js` — English/Russian localization

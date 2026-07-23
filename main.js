@@ -20,6 +20,7 @@ import {
 import { updatePlayer, updatePickups } from "./player.js";
 import { beginWave, updateWave, updateFoes, cleanupDeadFoes } from "./enemy.js";
 import { updateShots } from "./bullet.js";
+import { updateGrenades } from "./grenade.js";
 import { render } from "./render.js";
 import { initInput, syncCurrentMusic, applyVolumeSettings } from "./input.js";
 import { t, updateStaticTranslations } from "./i18n.js";
@@ -48,6 +49,7 @@ function update(dt) {
   }
 
   if (world.state === "wave_clear") {
+    updateGrenades(dt);
     updateParticles(dt);
     updateObjectDebris(dt);
     updateFireZones(dt);
@@ -60,6 +62,7 @@ function update(dt) {
   }
 
   if (world.state === "perk_select") {
+    updateGrenades(dt);
     updateParticles(dt);
     updateObjectDebris(dt);
     updateFireZones(dt);
@@ -81,6 +84,7 @@ function update(dt) {
   if (world.state === "intermission") {
     updatePlayer(dt, true);
     updateShots(dt);
+    updateGrenades(dt);
     updatePickups(dt);
     updateHunterDrone(dt);
     updateParticles(dt);
@@ -99,6 +103,7 @@ function update(dt) {
   updateWave(dt);
   updateFoes(dt);
   updateShots(dt);
+  updateGrenades(dt);
   updateHunterDrone(dt);
   cleanupDeadFoes();
   updatePickups(dt);
