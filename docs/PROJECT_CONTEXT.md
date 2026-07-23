@@ -9,7 +9,7 @@ This is the author's first serious game project. A future Steam release is a pos
 ## 2. Current build
 
 ```text
-Current version: 0.8.0-alpha
+Current version: 0.9.0-alpha
 Development status: Alpha
 ```
 
@@ -49,10 +49,10 @@ Do not use direct `index.html` opening as the recommended launch path. After ass
 - `game.js` — shared DOM references, game and run state, content definitions, assets/audio, bonuses, synergies, achievements, meta progression, Hall of Fame, menus, run lifecycle, and common helpers.
 - `input.js` — keyboard and pointer input, fullscreen control, menu wiring, audio controls, and internal Forbidden Protocol entry handling.
 - `player.js` — player movement, firing trigger, ordinary pickup collection, and hold-to-equip weapon handling.
-- `enemy.js` — wave creation, spawning, enemy and boss behavior, Swarm packs, Tech-Priest support logic, and wave completion.
-- `render.js` — canvas rendering for the map, actors, effects, pickups, radar, crosshair, banners, and boss UI.
+- `enemy.js` — wave creation, spawning, enemy and boss behavior, Swarm packs, Sniper hitscan logic, Tech-Priest support logic, and wave completion.
+- `render.js` — canvas rendering for the map, actors, Sniper telegraphs/beams, effects, pickups, radar, crosshair, banners, and boss UI.
 - `bullet.js` — player/enemy projectiles, weapon fire, dash, hit processing, and projectile-driven synergy effects.
-- `collision.js` — actor/solid collision, destructible damage, projectile obstruction, and barrel explosion damage.
+- `collision.js` — actor/solid collision, non-mutating segment/solid intersection, destructible damage, projectile obstruction, and barrel explosion damage.
 - `i18n.js` — EN/RU strings, language persistence, translation helpers, and static DOM translation.
 - `index.html` — DOM structure for the canvas, HUD, main menu, modals, pause screen, results, achievements, and Hall of Fame.
 - `style.css` — layout and presentation for DOM UI, overlays, responsive states, and fullscreen behavior.
@@ -150,6 +150,7 @@ The current build includes:
 - Hunter Drone support;
 - targeted impact grenades with a three-charge HUD inventory;
 - destructible cover, crates, and explosive barrels;
+- long-range Snipers with cover-blocked telegraphed hitscan attacks;
 - eight rotating battle music tracks.
 
 ## 10. Weapons
@@ -174,6 +175,7 @@ The internal `ARMORY` protocol continues to create nearby pickups for the three 
 - **Tank** (`criminal`) — ranged pressure unit that strafes and fires cannon-like shots.
 - **Swarm** (`swarm`) — fragile, fast melee creature deployed in packs; packs begin appearing from wave 2.
 - **Tech-Priest of the Swarm** (`techpriest`) — special support enemy that empowers ordinary allies while it lives.
+- **Sniper** (`sniper`) — long-range ordinary enemy that telegraphs and then fires a fixed-direction scarlet hitscan beam.
 
 ### Tech-Priest behavior and balance
 
@@ -225,6 +227,72 @@ Charge movement multiplier: 0.55
 - Cover does not currently block the signal wave.
 - Maximum close-range damage remains unchanged.
 
+### Sniper behavior and balance
+
+The Sniper is an ordinary, non-boss enemy registered as `sniper`. Its asset is loaded through `enemy_sniper` from `assets/images/enemies/sniper.png` and rendered as a square at sprite scale `3.45`. It has a distinct scarlet diamond/ring motion-tracker marker.
+
+Base stats:
+
+```text
+HP: 180
+Damage: 34
+Speed: 86
+Radius: 27
+Reward: 42
+Attack cooldown baseline: 4.4 seconds
+Combo gain: 0.32
+Pickup chance multiplier: 0.65
+Color: #ff2400
+Flesh: #1b1215
+Blood: #ff493d
+```
+
+Normal wave HP and damage scaling apply. The Sniper has no shield, armor, melee/contact attack, explosion, teleport, invisibility, summons, or dedicated progression. Kills use the ordinary `awardKill(...)` path.
+
+Wave planning:
+
+- Boss waves, waves 1–4, boss minions, and Swarm packs never contain a Sniper.
+- On waves 5–7, there is a 40% chance to plan one; a planned Tech-Priest suppresses this early Sniper.
+- On non-boss waves 8–11, there is a 65% chance to plan one, and it may coexist with a Tech-Priest.
+- On non-boss waves 12+, one is guaranteed and a second has a 35% chance.
+- At most one Sniper is active through wave 11 and at most two are active from wave 12 onward.
+- The first planned Sniper replaces one regular spawn slot at 22–42% of the regular roster. A planned second replaces a later slot at 62–82%.
+- Each Sniper increments `regularSpawned` once; planning never increases `regularTotal`.
+
+Positioning:
+
+```text
+Preferred distance: 520–720
+Hard retreat distance: 300
+Attack acquisition distance: 280–820
+Tracking movement cap: 22% of current speed
+Post-shot reposition: 0.9–1.35 seconds
+```
+
+The Sniper approaches beyond 720, strafes at its preferred range, retreats while strafing inside 520, and retreats aggressively inside 300. Movement uses `moveActor(...)`, respects live solids, and adds edge pressure to avoid remaining pinned to world bounds.
+
+Attack cycle:
+
+```text
+Total aim warning: 1.35 seconds
+Tracking phase: 1.03 seconds
+Final fixed lock: 0.32 seconds
+Beam visual lifetime: 0.12 seconds
+Post-shot cooldown: random 3.8–5.0 seconds
+Maximum beam range: 980
+Beam color: #ff2400
+```
+
+- Acquisition requires a living Sniper, no cooldown, a player inside 280–820, and clear line of sight.
+- The layered dark-red tracking line follows the player and deals no damage. Its dark outer stroke and restrained scarlet core keep it readable without competing with the fired beam. Losing line of sight cancels the attack, adds a 0.8–1.1-second delay, and starts repositioning.
+- During the final 0.32 seconds, the direction is fixed, the Sniper stops, and a thicker, brighter layered lock line no longer follows the player.
+- The fired beam is an immediate hitscan along that saved direction. Its heavy dark-scarlet outer stroke, dominant `#ff2400` body, and bright hot center clearly exceed both warning phases. Player-circle intersection must occur before the nearest living solid intersection to deal damage.
+- Crates, long crates, concrete walls, barricades, barrels, and other live destructible solids block the beam. The beam stops at the first hit without damaging or detonating the cover.
+- Damage is applied once through `damagePlayer(...)`, preserving dash immunity, invulnerability, armor, Second Wind, god mode, death handling, and screen effects.
+- Death during tracking or final lock clears the attack state, so no delayed shot remains. A released beam is only a short visual entry and cannot deal repeat damage.
+
+Tech-Priest empowerment treats the Sniper as an ordinary ranged target. Existing coefficients may increase HP and damage and shorten its recovery cooldown, but the 1.35-second warning and 0.32-second fixed lock are constants and are never shortened. The Sniper's first-spawn banner and beam state are run-local, cleared on a new run, death/results, abort, and return to the main menu, and introduce no new `localStorage` key.
+
 ## 12. Bosses
 
 Boss waves occur every fourth wave. The following three templates rotate cyclically:
@@ -243,6 +311,7 @@ Boss waves display a warning, an HP bar, and a defeated banner. They do not allo
 - Swarm packs begin at wave 2 and their target count rises through later wave bands.
 - Every fourth wave includes one of the three cyclic bosses.
 - Eligible non-boss waves can contain a Tech-Priest, including pity-spawn handling.
+- Snipers use separately planned regular spawn slots from wave 5 onward and never appear on boss waves.
 - Clearing a wave starts a short clear sequence followed by augment selection and the next intermission.
 - There is no final victory and no fully role-based Wave Director yet.
 
@@ -358,9 +427,8 @@ NUKE
 
 - No Victory Screen or real victory condition; runs are effectively endless.
 - One primary battlefield layout.
-- Limited current enemy roster.
+- Limited current enemy roster beyond the implemented Sniper role.
 - The same three bosses repeat cyclically.
-- Sniper is not implemented.
 - Elite enemy modifiers are not implemented.
 - No fully role-based Wave Director.
 - No milestone megaboss every 15 waves.
@@ -390,7 +458,7 @@ NUKE
 
 ### Stage 2 — Enemy Evolution
 
-1. Sniper.
+1. Sniper — implemented in v0.9.0-alpha.
 2. Elite enemy modifiers.
 3. Role-based Wave Director.
 4. Boss behavior expansion.

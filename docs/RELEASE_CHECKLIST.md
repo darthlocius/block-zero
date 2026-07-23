@@ -69,7 +69,7 @@ The full reset also deletes `blockZeroLanguage` and any other `localStorage` dat
 
 ## 5. Main menu
 
-- [ ] Only `v0.8.0-alpha` is visible as the build label; it is readable but unobtrusive.
+- [ ] Only `v0.9.0-alpha` is visible as the build label; it is readable but unobtrusive.
 - [ ] Build label does not behave like a button or intercept pointer input.
 - [ ] EN is the default on a fully clean origin.
 - [ ] EN/RU switching updates all visible menu and overlay text.
@@ -252,7 +252,47 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Consecutive impacts are about 4.85–6.05 seconds apart, and multiple impacts cannot start in the same frame.
 - [ ] Tech-Priest HP, shield, armor, blaster stats, ally-buff coefficients, spawn chance, pity logic, spawn timing, rewards, and loot are unchanged.
 
-## 12. Display modes
+## 12. Sniper
+
+### Spawn planning and reset
+
+- [ ] Waves 1–4 and every boss wave plan and spawn no Snipers.
+- [ ] Waves 5–7 use the 40% one-Sniper chance, never exceed one active Sniper, and suppress Sniper planning when a Tech-Priest is planned.
+- [ ] Non-boss waves 8–11 use the 65% one-Sniper chance and can contain both a Sniper and Tech-Priest.
+- [ ] Non-boss waves 12+ always plan one Sniper, sometimes plan a later second at 35%, and never exceed two active Snipers.
+- [ ] The first Sniper replaces a regular slot around 22–42% of the roster; the second replaces a later slot around 62–82% without sharing a frame or spawn point.
+- [ ] A new run, death/results flow, abort, and full return to the main menu clear all aim lines, beam visuals, cooldown/lock state, old planning, and the one-run detection-banner flag.
+
+### Asset, scale, radar, and localization
+
+- [ ] `assets/images/enemies/sniper.png` loads without an asset error and has no opaque black square.
+- [ ] The Sniper sprite is visibly larger than Hellhound, Orb, Tank, and Swarm, but smaller than the Tech-Priest and bosses.
+- [ ] The square sprite keeps its proportions and horizontal reflection.
+- [ ] The scarlet diamond/ring radar marker is clearer than a normal enemy point and smaller than the Tech-Priest marker.
+- [ ] The first actual Sniper spawn shows the localized EN/RU detection banner exactly once per run.
+
+### Tracking, lock, hit, and cover
+
+- [ ] Tracking lasts about 1.03 seconds within the total 1.35-second warning, follows the player with a readable layered dark-red/scarlet line, permits limited Sniper movement, and deals no damage.
+- [ ] The final 0.32-second lock is clearly thicker and brighter than tracking, fixes direction, stops the Sniper, and still deals no damage.
+- [ ] Ordinary movement and dash can leave the fixed line before the shot.
+- [ ] The actual beam is unmistakably thicker and more powerful than both warning phases, with a dark-scarlet outer stroke, dominant `#ff2400` body, bright hot center, controlled muzzle/impact flashes, modest screen shake, and no full-screen flash.
+- [ ] A direct unobstructed hit calls the normal player-damage path once.
+- [ ] Crates, long crates, concrete walls, barricades, barrels, and other live destructible solids stop the line and beam at the first intersection; the player behind cover takes no damage.
+- [ ] Losing line of sight during tracking cancels the shot and causes repositioning.
+- [ ] Killing the Sniper during tracking or final lock cancels the shot and leaves no warning line, delayed damage, or continuing sound.
+- [ ] The Sniper has no contact damage even when the player stands inside its collision radius.
+
+### Balance, Tech-Priest, audio, and performance
+
+- [ ] Base stats before wave scaling are 180 HP, 34 damage, 86 speed, 27 radius, 42 reward, and 4.4-second attack cooldown.
+- [ ] Preferred range is 520–720, hard retreat begins inside 300, acquisition is limited to 280–820, and beam range is 980.
+- [ ] Post-shot cooldown is 3.8–5.0 seconds and reposition lasts 0.9–1.35 seconds.
+- [ ] Tech-Priest empowerment affects normal Sniper HP/damage/movement/recovery values but never shortens the 1.35-second warning or 0.32-second final lock.
+- [ ] Aim-start, lock, and shot cues are distinct, obey SFX volume, are silent at zero SFX, and leave no looping node after death.
+- [ ] One and two-Sniper fights remain readable in windowed mode and true 1920×1080 fullscreen without new console errors or a noticeable FPS drop.
+
+## 13. Display modes
 
 - [ ] Non-fullscreen layout is usable at the normal viewport size.
 - [ ] True fullscreen resizes the real canvas and reveals more world area.
@@ -263,7 +303,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Crosshair and shots align with the pointer after resize and fullscreen transitions.
 - [ ] Main menu, overlays, and version label do not introduce horizontal scroll.
 
-## 13. Final release gate
+## 14. Final release gate
 
 - [ ] All syntax checks pass.
 - [ ] Manual smoke test passes.
@@ -275,5 +315,5 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Windowed/fullscreen test passes.
 - [ ] Git diff has been reviewed and contains no unintended gameplay or asset changes.
 - [ ] A recoverable archive backup exists.
-- [ ] `v0.8.0-alpha` is visible in the main menu.
+- [ ] `v0.9.0-alpha` is visible in the main menu.
 - [ ] `CHANGELOG.md` matches the candidate build.

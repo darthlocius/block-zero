@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.9.0-alpha] — In Development
+
+### Added
+
+- Added the Sniper, a long-range ordinary enemy that begins appearing from wave 5.
+- Added a localized one-time detection banner for the first Sniper spawned in each run.
+- Added a distinct Sniper marker to the motion tracker.
+
+### Enemy AI
+
+- Added dedicated wave-slot planning with early/mid/late spawn chances and a maximum of two active Snipers from wave 12 onward.
+- Added long-range positioning, edge avoidance, cover-aware line of sight, and a reposition phase after every shot.
+- Added a 1.35-second tracking/lock warning; the final 0.32 seconds fix the firing direction so movement, dash, or cover can avoid the shot.
+- Tech-Priest empowerment can strengthen Sniper health, damage, movement, and recovery without shortening its mandatory warning phases.
+
+### Visuals
+
+- Added layered tracking and pulsing final-lock lines with a clearer visual step between warning phases.
+- Added a short, heavy scarlet `#ff2400` hitscan beam with a bright hot center and controlled muzzle, impact, and screen-shake effects.
+- Solid destructible cover stops both the warning line and the fired beam.
+
+### Audio
+
+- Added synthesized aim-start, target-lock, and energy-crack cues through the existing Web Audio system.
+
+### Balance
+
+- Increased Sniper base health from 112 HP to 180 HP so the ranged threat survives long enough to complete its intended pressure cycle.
+- Sniper base stats: 180 HP, 34 damage, 86 speed, 27 radius, 42 reward, and 4.4-second base attack cooldown.
+- Waves 5–7 have a 40% chance for one Sniper unless a Tech-Priest is planned; waves 8–11 have a 65% chance for one; waves 12+ guarantee one with a 35% chance for a second.
+- Snipers use normal wave HP/damage scaling, have no contact attack, and retain ordinary reward, combo, pickup, and kill-stat paths.
+
 ## [0.8.0-alpha] — In Development
 
 ### Added

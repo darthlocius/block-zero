@@ -21,7 +21,7 @@
   playerFrameFor,
   enemyFrameFor,
 } from "./game.js";
-import { TECHPRIEST_SIGNAL_WAVE } from "./enemy.js";
+import { SNIPER_ATTACK, TECHPRIEST_SIGNAL_WAVE } from "./enemy.js";
 import { t } from "./i18n.js";
 
 // Canvas rendering for the world, actors, effects, and HUD.
@@ -1319,6 +1319,86 @@ function drawTechpriestEmpoweredArcs(foe, canDrawArc = false) {
   ctx.restore();
 }
 
+function drawSniperAttackEffects() {
+  for (const foe of world.foes) {
+    if (foe.id !== "sniper" || foe.hp <= 0) continue;
+    if (foe.sniperPhase !== "tracking" && foe.sniperPhase !== "lock") continue;
+    if (!Number.isFinite(foe.sniperAimX) || !Number.isFinite(foe.sniperAimY)) continue;
+
+    const angle = foe.sniperPhase === "lock"
+      ? foe.sniperLockedAngle
+      : (foe.sniperAimAngle ?? foe.angle ?? 0);
+    const muzzleX = foe.x + Math.cos(angle) * (foe.radius + 10);
+    const muzzleY = foe.y + Math.sin(angle) * (foe.radius + 10);
+
+    ctx.save();
+    ctx.lineCap = "round";
+    if (foe.sniperPhase === "tracking") {
+      ctx.globalAlpha = 0.62;
+      ctx.strokeStyle = "#420706";
+      ctx.lineWidth = 5.4;
+      ctx.beginPath();
+      ctx.moveTo(muzzleX, muzzleY);
+      ctx.lineTo(foe.sniperAimX, foe.sniperAimY);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.83;
+      ctx.strokeStyle = "#c92b22";
+      ctx.lineWidth = 2.2;
+    } else {
+      const pulse = 0.5 + Math.sin(world.lastTime * 0.022 + foe.pulse) * 0.5;
+      ctx.globalAlpha = 0.72 + pulse * 0.14;
+      ctx.strokeStyle = "#650b08";
+      ctx.lineWidth = 8 + pulse * 0.8;
+      ctx.beginPath();
+      ctx.moveTo(muzzleX, muzzleY);
+      ctx.lineTo(foe.sniperAimX, foe.sniperAimY);
+      ctx.stroke();
+
+      ctx.globalAlpha = 0.9 + pulse * 0.1;
+      ctx.strokeStyle = "#ff5a40";
+      ctx.lineWidth = 3.8 + pulse * 0.7;
+    }
+    ctx.beginPath();
+    ctx.moveTo(muzzleX, muzzleY);
+    ctx.lineTo(foe.sniperAimX, foe.sniperAimY);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  for (const beam of world.sniperBeams || []) {
+    const life = clamp(beam.life / Math.max(0.001, beam.total), 0, 1);
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.globalCompositeOperation = "screen";
+
+    ctx.globalAlpha = 0.3 * life;
+    ctx.strokeStyle = "#8a0d08";
+    ctx.lineWidth = 18;
+    ctx.beginPath();
+    ctx.moveTo(beam.x1, beam.y1);
+    ctx.lineTo(beam.x2, beam.y2);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.96 * life;
+    ctx.strokeStyle = SNIPER_ATTACK.beamColor;
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(beam.x1, beam.y1);
+    ctx.lineTo(beam.x2, beam.y2);
+    ctx.stroke();
+
+    ctx.globalAlpha = 0.9 * life;
+    ctx.strokeStyle = "#fff1d8";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.moveTo(beam.x1, beam.y1);
+    ctx.lineTo(beam.x2, beam.y2);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 function drawFoe(foe, empoweredArcBudget = 0) {
   const lookLeft = typeof foe.facingLeft === "boolean" ? foe.facingLeft : player.x < foe.x;
   if (foe.techpriestEmpowered) drawTechpriestEmpoweredAura(foe);
@@ -1361,6 +1441,7 @@ function drawFoe(foe, empoweredArcBudget = 0) {
     criminal: 3.35,
     swarm: 2.75,
     techpriest: 3.55,
+    sniper: 3.45,
   };
   const spriteScale = foe.boss ? 3.4 : (enemySpriteScale[foe.kind] || 2.95);
   const sprite = assets.getImage(spriteKey) || (foe.boss ? assets.getImage("boss") : null);
@@ -1792,6 +1873,24 @@ function drawRadar() {
     const scale = radius / RADAR_ENEMY_RANGE;
     const px = dx * scale;
     const py = dy * scale;
+    if (foe.id === "sniper") {
+      const markerSize = 4.2 * uiScale;
+      ctx.fillStyle = "#ff2400";
+      ctx.beginPath();
+      ctx.moveTo(px, py - markerSize);
+      ctx.lineTo(px + markerSize, py);
+      ctx.lineTo(px, py + markerSize);
+      ctx.lineTo(px - markerSize, py);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255, 112, 87, 0.9)";
+      ctx.lineWidth = Math.max(1, 1.2 * uiScale);
+      ctx.beginPath();
+      ctx.arc(px, py, 6.4 * uiScale, 0, TAU);
+      ctx.stroke();
+      continue;
+    }
     if (foe.id === "techpriest") {
       ctx.fillStyle = "#8ef3ff";
       ctx.beginPath();
@@ -2156,6 +2255,7 @@ function render() {
   drawWeaponPickupPrompt();
   drawParticles();
   drawFoes();
+  drawSniperAttackEffects();
   drawGrenades();
   drawHunterDrone();
   drawPlayer();

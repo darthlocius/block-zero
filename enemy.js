@@ -18,6 +18,7 @@
   awardKill,
   damagePlayer,
   spawnEnemyShotEffect,
+  spawnImpactFlash,
   pushParticle,
   pushBlastGlow,
   spawnWaveBarrels,
@@ -30,7 +31,7 @@
 } from "./game.js";
 import { projectile } from "./bullet.js";
 import { t } from "./i18n.js";
-import { moveActor } from "./collision.js";
+import { firstSolidIntersection, moveActor } from "./collision.js";
 import { restockGrenadeAtWaveStart } from "./grenade.js";
 
 // Enemy spawning, waves, and AI behavior.
@@ -72,6 +73,107 @@ const TECHPRIEST_SIGNAL_WAVE = Object.freeze({
 
   chargeMoveMultiplier: 0.55,
 });
+
+const SNIPER_SPAWN = Object.freeze({
+  firstWave: 5,
+  earlyChance: 0.4,
+  midChance: 0.65,
+  secondLateChance: 0.35,
+  firstSpawnMin: 0.22,
+  firstSpawnMax: 0.42,
+  secondSpawnMin: 0.62,
+  secondSpawnMax: 0.82,
+});
+
+const SNIPER_POSITIONING = Object.freeze({
+  preferredMin: 520,
+  preferredMax: 720,
+  hardRetreatDistance: 300,
+  acquisitionMin: 280,
+  acquisitionMax: 820,
+  trackingMoveMultiplier: 0.22,
+});
+
+const SNIPER_ATTACK = Object.freeze({
+  totalAimDuration: 1.35,
+  finalLockDuration: 0.32,
+  trackingDuration: 1.03,
+  beamDuration: 0.12,
+  beamRange: 980,
+  postShotCooldownMin: 3.8,
+  postShotCooldownMax: 5.0,
+  baseCooldown: 4.4,
+  repositionMin: 0.9,
+  repositionMax: 1.35,
+  lostSightDelayMin: 0.8,
+  lostSightDelayMax: 1.1,
+  beamColor: "#ff2400",
+});
+
+function randomBetween(random, min, max) {
+  return min + (max - min) * random();
+}
+
+function planSnipersForWave(
+  wave,
+  bossWave,
+  regularTotal,
+  techpriestPlanned,
+  random = Math.random,
+) {
+  let sniperPlannedCount = 0;
+
+  if (!bossWave && wave >= SNIPER_SPAWN.firstWave) {
+    if (wave <= 7) {
+      if (!techpriestPlanned && random() < SNIPER_SPAWN.earlyChance) {
+        sniperPlannedCount = 1;
+      }
+    } else if (wave <= 11) {
+      if (random() < SNIPER_SPAWN.midChance) sniperPlannedCount = 1;
+    } else {
+      sniperPlannedCount = 1 + (random() < SNIPER_SPAWN.secondLateChance ? 1 : 0);
+    }
+  }
+
+  const sniperSpawnIndices = [];
+  const lastSlot = Math.max(0, regularTotal - 1);
+
+  if (sniperPlannedCount > 0 && regularTotal > 0) {
+    const firstIndex = Math.min(
+      lastSlot,
+      Math.max(
+        0,
+        Math.floor(
+          regularTotal
+          * randomBetween(random, SNIPER_SPAWN.firstSpawnMin, SNIPER_SPAWN.firstSpawnMax),
+        ),
+      ),
+    );
+    sniperSpawnIndices.push(firstIndex);
+  }
+
+  if (sniperPlannedCount > 1 && regularTotal > 1) {
+    const secondIndex = Math.min(
+      lastSlot,
+      Math.max(
+        sniperSpawnIndices[0] + 1,
+        Math.floor(
+          regularTotal
+          * randomBetween(random, SNIPER_SPAWN.secondSpawnMin, SNIPER_SPAWN.secondSpawnMax),
+        ),
+      ),
+    );
+    sniperSpawnIndices.push(secondIndex);
+  }
+
+  return {
+    sniperPlannedCount: sniperSpawnIndices.length,
+    sniperSpawnIndices,
+    sniperSpawnPoints: [],
+    snipersSpawned: 0,
+    maxActiveSnipers: sniperSpawnIndices.length === 0 ? 0 : (wave >= 12 ? 2 : 1),
+  };
+}
 
 function techpriestChanceForWave(wave) {
   if (wave < TECHPRIEST_SPAWN.firstWave) return 0;
@@ -121,6 +223,12 @@ function createWave(wave) {
   const techpriestSpawnAt = techpriestPlanned
     ? Math.max(1, Math.floor(regularTotal * rand(TECHPRIEST_SPAWN.spawnAtMin, TECHPRIEST_SPAWN.spawnAtMax)))
     : Infinity;
+  const sniperPlan = planSnipersForWave(
+    wave,
+    bossWave,
+    regularTotal,
+    techpriestPlanned,
+  );
 
   const waveState = {
     wave,
@@ -140,6 +248,7 @@ function createWave(wave) {
     techpriestSpawned: false,
     techpriestSpawnAt,
     techpriestBuffActive: false,
+    ...sniperPlan,
   };
 
   scheduleNextSwarmPack(waveState);
@@ -529,7 +638,93 @@ function intermission() {
   startWaveClearSequence();
 }
 
+function activeSniperCount() {
+  return world.foes.filter((foe) => foe.id === "sniper" && foe.hp > 0).length;
+}
+
+function shouldSpawnPlannedSniper() {
+  const currentWave = world.currentWave;
+  if (!currentWave || currentWave.bossWave) return false;
+  if ((currentWave.snipersSpawned || 0) >= (currentWave.sniperPlannedCount || 0)) return false;
+  if (activeSniperCount() >= (currentWave.maxActiveSnipers || 0)) return false;
+
+  const nextIndex = currentWave.sniperSpawnIndices?.[currentWave.snipersSpawned || 0];
+  return Number.isFinite(nextIndex) && currentWave.regularSpawned >= nextIndex;
+}
+
+function sniperSpawnPoint() {
+  const livingSnipers = world.foes.filter((foe) => foe.id === "sniper" && foe.hp > 0);
+  const priorSpawnPoints = world.currentWave?.sniperSpawnPoints || [];
+  let candidate = spawnPoint();
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const clearOfLiving = livingSnipers.every(
+      (foe) => Math.hypot(foe.x - candidate.x, foe.y - candidate.y) >= 180,
+    );
+    const clearOfPriorSpawns = priorSpawnPoints.every(
+      (point) => Math.hypot(point.x - candidate.x, point.y - candidate.y) >= 180,
+    );
+    if (clearOfLiving && clearOfPriorSpawns) {
+      break;
+    }
+    candidate = spawnPoint();
+  }
+
+  return candidate;
+}
+
+function spawnSniper() {
+  const currentWave = world.currentWave;
+  if (!currentWave || !shouldSpawnPlannedSniper()) return false;
+
+  const base = enemies.sniper;
+  if (!base) return false;
+
+  const pos = sniperSpawnPoint();
+  const { hpScale, damageScale } = waveScaling(world.wave);
+  const foe = makeFoe(base, pos.x, pos.y, {
+    kind: "sniper",
+    hp: Math.round(base.hp * hpScale),
+    damage: Math.round(base.damage * damageScale),
+    speed: base.speed,
+    radius: base.radius,
+    reward: base.reward,
+    attackCooldown: base.attackCooldown,
+    comboGain: base.comboGain,
+    pickupChanceMul: base.pickupChanceMul,
+  });
+
+  foe.sniperPhase = "idle";
+  foe.sniperAimTimer = 0;
+  foe.sniperLockedAngle = null;
+  foe.sniperAimX = player.x;
+  foe.sniperAimY = player.y;
+  foe.sniperRepositionTimer = 0;
+  foe.sniperRepositionDir = foe.strafeDir;
+
+  addFoeToWorld(foe);
+  currentWave.sniperSpawnPoints = [
+    ...(currentWave.sniperSpawnPoints || []),
+    { x: pos.x, y: pos.y },
+  ];
+  currentWave.snipersSpawned = (currentWave.snipersSpawned || 0) + 1;
+  currentWave.regularSpawned += 1;
+
+  if (!world.sniperBannerShown) {
+    world.sniperBannerShown = true;
+    banner(
+      t("banner.sniperDetected.title"),
+      t("banner.sniperDetected.subtitle"),
+      2.6,
+      SNIPER_ATTACK.beamColor,
+    );
+  }
+
+  return true;
+}
+
 function spawnRegular() {
+  if (shouldSpawnPlannedSniper() && spawnSniper()) return;
   if (shouldSpawnSwarmPack() && spawnSwarmPack()) return;
 
   const wave = world.wave;
@@ -961,6 +1156,276 @@ function updateTechpriest(foe, dt, len, nx, ny, tx, ty, dx, dy) {
   moveActor(foe, vx, vy, dt);
 }
 
+function sniperMuzzlePoint(foe, angle) {
+  const offset = foe.radius + 10;
+  return {
+    x: foe.x + Math.cos(angle) * offset,
+    y: foe.y + Math.sin(angle) * offset,
+  };
+}
+
+function segmentCircleIntersection(x1, y1, x2, y2, circle) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const fx = x1 - circle.x;
+  const fy = y1 - circle.y;
+  const a = dx * dx + dy * dy;
+  if (a <= 1e-8) return null;
+
+  const b = 2 * (fx * dx + fy * dy);
+  const c = fx * fx + fy * fy - circle.radius * circle.radius;
+  const discriminant = b * b - 4 * a * c;
+  if (discriminant < 0) return null;
+
+  const root = Math.sqrt(discriminant);
+  const candidates = [
+    (-b - root) / (2 * a),
+    (-b + root) / (2 * a),
+  ].filter((t) => t >= 0 && t <= 1);
+
+  if (!candidates.length) return null;
+  const t = Math.min(...candidates);
+  return {
+    x: x1 + dx * t,
+    y: y1 + dy * t,
+    t,
+  };
+}
+
+function sniperRay(foe, angle, range = SNIPER_ATTACK.beamRange) {
+  const muzzle = sniperMuzzlePoint(foe, angle);
+  const farX = muzzle.x + Math.cos(angle) * range;
+  const farY = muzzle.y + Math.sin(angle) * range;
+  const solidHit = firstSolidIntersection(muzzle.x, muzzle.y, farX, farY);
+
+  return {
+    muzzle,
+    farX,
+    farY,
+    solidHit,
+    endX: solidHit?.x ?? farX,
+    endY: solidHit?.y ?? farY,
+  };
+}
+
+function sniperHasLineOfSight(foe) {
+  const angle = Math.atan2(player.y - foe.y, player.x - foe.x);
+  const muzzle = sniperMuzzlePoint(foe, angle);
+  return !firstSolidIntersection(muzzle.x, muzzle.y, player.x, player.y);
+}
+
+function cancelSniperAim(foe) {
+  foe.sniperPhase = "idle";
+  foe.sniperAimTimer = 0;
+  foe.sniperLockedAngle = null;
+  foe.attackTimer = rand(
+    SNIPER_ATTACK.lostSightDelayMin,
+    SNIPER_ATTACK.lostSightDelayMax,
+  );
+  foe.sniperRepositionTimer = rand(
+    SNIPER_ATTACK.repositionMin,
+    SNIPER_ATTACK.repositionMax,
+  );
+  foe.strafeDir *= -1;
+  foe.sniperRepositionDir = foe.strafeDir;
+}
+
+function beginSniperAim(foe) {
+  foe.sniperPhase = "tracking";
+  foe.sniperAimTimer = SNIPER_ATTACK.totalAimDuration;
+  foe.sniperLockedAngle = null;
+  foe.sniperAimX = player.x;
+  foe.sniperAimY = player.y;
+  foe.sniperAimAngle = Math.atan2(player.y - foe.y, player.x - foe.x);
+  audio.sniperAimStart();
+}
+
+function lockSniperAim(foe) {
+  foe.sniperPhase = "lock";
+  foe.sniperAimTimer = SNIPER_ATTACK.finalLockDuration;
+  foe.sniperLockedAngle = Math.atan2(player.y - foe.y, player.x - foe.x);
+  foe.sniperAimAngle = foe.sniperLockedAngle;
+  const ray = sniperRay(foe, foe.sniperLockedAngle);
+  foe.sniperAimX = ray.endX;
+  foe.sniperAimY = ray.endY;
+  audio.sniperLock();
+}
+
+function fireSniperBeam(foe) {
+  if (!foe || foe.hp <= 0 || !Number.isFinite(foe.sniperLockedAngle)) return;
+
+  const ray = sniperRay(foe, foe.sniperLockedAngle);
+  const playerHit = segmentCircleIntersection(
+    ray.muzzle.x,
+    ray.muzzle.y,
+    ray.farX,
+    ray.farY,
+    player,
+  );
+  const playerIsFirstHit = Boolean(
+    playerHit
+    && (!ray.solidHit || playerHit.t < ray.solidHit.t - 1e-6),
+  );
+
+  world.sniperBeams.push({
+    x1: ray.muzzle.x,
+    y1: ray.muzzle.y,
+    x2: ray.endX,
+    y2: ray.endY,
+    life: SNIPER_ATTACK.beamDuration,
+    total: SNIPER_ATTACK.beamDuration,
+    color: SNIPER_ATTACK.beamColor,
+  });
+
+  if (playerIsFirstHit) {
+    damagePlayer(foe.damage, { source: "sniper_beam" });
+  }
+
+  spawnImpactFlash(
+    ray.muzzle.x,
+    ray.muzzle.y,
+    SNIPER_ATTACK.beamColor,
+    0.95,
+    "enemy",
+  );
+  spawnImpactFlash(
+    ray.endX,
+    ray.endY,
+    SNIPER_ATTACK.beamColor,
+    ray.solidHit ? 1.22 : 0.92,
+    "enemy",
+  );
+  pushBlastGlow(
+    ray.muzzle.x,
+    ray.muzzle.y,
+    50,
+    "rgba(255, 36, 0, 0.38)",
+    SNIPER_ATTACK.beamDuration,
+  );
+  pushBlastGlow(
+    ray.endX,
+    ray.endY,
+    ray.solidHit ? 60 : 44,
+    "rgba(255, 73, 61, 0.34)",
+    SNIPER_ATTACK.beamDuration,
+  );
+
+  audio.sniperFire();
+  addScreenShake(0.19);
+
+  const cooldownScale = Math.max(
+    0.2,
+    (foe.attackCooldown || SNIPER_ATTACK.baseCooldown) / SNIPER_ATTACK.baseCooldown,
+  );
+  foe.attackTimer = rand(
+    SNIPER_ATTACK.postShotCooldownMin,
+    SNIPER_ATTACK.postShotCooldownMax,
+  ) * cooldownScale;
+  foe.sniperPhase = "idle";
+  foe.sniperAimTimer = 0;
+  foe.sniperLockedAngle = null;
+  foe.sniperAimX = ray.endX;
+  foe.sniperAimY = ray.endY;
+  foe.sniperRepositionTimer = rand(
+    SNIPER_ATTACK.repositionMin,
+    SNIPER_ATTACK.repositionMax,
+  );
+  foe.strafeDir *= -1;
+  foe.sniperRepositionDir = foe.strafeDir;
+  foe.attackAnimTimer = 0.2;
+}
+
+function updateSniper(foe, dt, len, nx, ny, tx, ty) {
+  foe.sniperRepositionTimer = Math.max(0, (foe.sniperRepositionTimer || 0) - dt);
+
+  if (foe.sniperPhase === "tracking") {
+    if (!sniperHasLineOfSight(foe)) {
+      cancelSniperAim(foe);
+    } else {
+      foe.sniperAimTimer = Math.max(0, foe.sniperAimTimer - dt);
+      foe.sniperAimX = player.x;
+      foe.sniperAimY = player.y;
+      foe.sniperAimAngle = Math.atan2(player.y - foe.y, player.x - foe.x);
+      if (foe.sniperAimTimer <= SNIPER_ATTACK.finalLockDuration) {
+        lockSniperAim(foe);
+      }
+    }
+  } else if (foe.sniperPhase === "lock") {
+    foe.sniperAimTimer = Math.max(0, foe.sniperAimTimer - dt);
+    const ray = sniperRay(foe, foe.sniperLockedAngle);
+    foe.sniperAimX = ray.endX;
+    foe.sniperAimY = ray.endY;
+    if (foe.sniperAimTimer <= 0) fireSniperBeam(foe);
+  } else if (
+    foe.attackTimer <= 0
+    && len >= SNIPER_POSITIONING.acquisitionMin
+    && len <= SNIPER_POSITIONING.acquisitionMax
+    && sniperHasLineOfSight(foe)
+  ) {
+    beginSniperAim(foe);
+  }
+
+  let vx = 0;
+  let vy = 0;
+  const strafeDir = foe.sniperRepositionTimer > 0
+    ? (foe.sniperRepositionDir || foe.strafeDir)
+    : foe.strafeDir;
+
+  if (len > SNIPER_POSITIONING.preferredMax) {
+    vx += nx * foe.speed * 0.82;
+    vy += ny * foe.speed * 0.82;
+    vx += tx * foe.speed * 0.16 * strafeDir;
+    vy += ty * foe.speed * 0.16 * strafeDir;
+  } else if (len < SNIPER_POSITIONING.hardRetreatDistance) {
+    vx -= nx * foe.speed * 1.1;
+    vy -= ny * foe.speed * 1.1;
+    vx += tx * foe.speed * 0.36 * strafeDir;
+    vy += ty * foe.speed * 0.36 * strafeDir;
+  } else if (len < SNIPER_POSITIONING.preferredMin) {
+    vx -= nx * foe.speed * 0.58;
+    vy -= ny * foe.speed * 0.58;
+    vx += tx * foe.speed * 0.46 * strafeDir;
+    vy += ty * foe.speed * 0.46 * strafeDir;
+  } else {
+    vx += tx * foe.speed * 0.34 * strafeDir;
+    vy += ty * foe.speed * 0.34 * strafeDir;
+  }
+
+  if (foe.sniperRepositionTimer > 0) {
+    vx += tx * foe.speed * 0.48 * strafeDir;
+    vy += ty * foe.speed * 0.48 * strafeDir;
+  }
+
+  const edgePadding = 210;
+  const edgeForce = foe.speed * 1.2;
+  if (foe.x < edgePadding) vx += edgeForce * (1 - foe.x / edgePadding);
+  else if (foe.x > world.width - edgePadding) vx -= edgeForce * (1 - (world.width - foe.x) / edgePadding);
+  if (foe.y < edgePadding) vy += edgeForce * (1 - foe.y / edgePadding);
+  else if (foe.y > world.height - edgePadding) vy -= edgeForce * (1 - (world.height - foe.y) / edgePadding);
+
+  foe.knockbackX *= Math.max(0, 1 - dt * 7.5);
+  foe.knockbackY *= Math.max(0, 1 - dt * 7.5);
+  const slowMultiplier = foe.slowTimer > 0 ? 0.58 : 1;
+  vx = vx * slowMultiplier + foe.knockbackX;
+  vy = vy * slowMultiplier + foe.knockbackY;
+
+  if (foe.sniperPhase === "lock") {
+    vx = 0;
+    vy = 0;
+  } else if (foe.sniperPhase === "tracking") {
+    const speed = Math.hypot(vx, vy);
+    const maxTrackingSpeed = foe.speed * SNIPER_POSITIONING.trackingMoveMultiplier;
+    if (speed > maxTrackingSpeed && speed > 0) {
+      vx = vx / speed * maxTrackingSpeed;
+      vy = vy / speed * maxTrackingSpeed;
+    }
+  }
+
+  foe.isMoving = Math.hypot(vx, vy) > 2;
+  foe.animTime += dt * (foe.isMoving ? 1 : 0.7);
+  moveActor(foe, vx, vy, dt);
+}
+
 function updateFoe(foe, dt) {
   foe.hitFlash = Math.max(0, foe.hitFlash - dt);
   foe.slowTimer = Math.max(0, (foe.slowTimer || 0) - dt);
@@ -989,10 +1454,15 @@ function updateFoe(foe, dt) {
   foe.pulse += dt * (foe.boss ? 5.2 : 6.5);
   const dx = player.x - foe.x;
   const dy = player.y - foe.y;
-  if (Math.abs(dx) > FACE_DEAD_ZONE) {
+  const sniperDirectionLocked = (
+    foe.id === "sniper"
+    && foe.sniperPhase === "lock"
+    && Number.isFinite(foe.sniperLockedAngle)
+  );
+  if (!sniperDirectionLocked && Math.abs(dx) > FACE_DEAD_ZONE) {
     foe.facingLeft = dx < 0;
   }
-  foe.angle = Math.atan2(dy, dx);
+  foe.angle = sniperDirectionLocked ? foe.sniperLockedAngle : Math.atan2(dy, dx);
   updateActorFacing(foe, foe.angle, foe.animationProfile);
   const len = Math.hypot(dx, dy) || 1;
   const nx = dx / len;
@@ -1080,6 +1550,9 @@ function updateFoe(foe, dt) {
       }
       if (foe.specialCooldown <= 0 && world.foes.length < 18) { foe.specialCooldown = 5.6; spawnMinions(foe, 2); }
     }
+  } else if (foe.id === "sniper") {
+    updateSniper(foe, dt, len, nx, ny, tx, ty);
+    return;
   } else if (foe.id === "techpriest") {
     updateTechpriest(foe, dt, len, nx, ny, tx, ty, dx, dy);
     return;
@@ -1190,6 +1663,11 @@ function cleanupDeadFoes() {
         foe.techpriestWaveChargeTimer = 0;
         removeTechpriestBuffFromWave(true);
       }
+      if (foe.id === "sniper") {
+        foe.sniperPhase = "idle";
+        foe.sniperAimTimer = 0;
+        foe.sniperLockedAngle = null;
+      }
       awardKill(foe);
     } else {
       alive.push(foe);
@@ -1208,12 +1686,18 @@ function updateFoes(dt) {
 
 export {
   TECHPRIEST_SIGNAL_WAVE,
+  SNIPER_SPAWN,
+  SNIPER_POSITIONING,
+  SNIPER_ATTACK,
+  planSnipersForWave,
+  segmentCircleIntersection,
   createWave,
   spawnPoint,
   makeFoe,
   beginWave,
   intermission,
   spawnRegular,
+  spawnSniper,
   forceSpawnTechpriestNow,
   spawnBoss,
   spawnMinions,

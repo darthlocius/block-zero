@@ -220,6 +220,22 @@ const enemies = {
     shieldRatio: 1.15,
     armorReduction: 0.3,
   },
+  sniper: {
+    id: "sniper",
+    label: "Sniper",
+    speed: 86,
+    radius: 27,
+    hp: 180,
+    reward: 42,
+    damage: 34,
+    attackCooldown: 4.4,
+    color: "#ff2400",
+    flesh: "#1b1215",
+    blood: "#ff493d",
+    ranged: true,
+    comboGain: 0.32,
+    pickupChanceMul: 0.65,
+  },
 };
 
 const bosses = [
@@ -270,6 +286,7 @@ const assetManifest = {
     enemy_criminal: "assets/images/enemies/tank.png",
     enemy_swarm: "assets/images/enemies/swarm.png",
     enemy_techpriest: "assets/images/enemies/swarm-techpriest.png",
+    enemy_sniper: "assets/images/enemies/sniper.png",
     boss: "assets/images/boss/alpha.png",
     boss_alpha: "assets/images/boss/alpha.png",
     boss_abomination: "assets/images/boss/abomination.png",
@@ -642,6 +659,8 @@ const world = {
   wave: 0,
   techpriestEligibleMisses: 0,
   techpriestSpawnedThisRun: 0,
+  sniperBannerShown: false,
+  sniperBeams: [],
   kills: 0,
   runCreditsEarned: 0,
   runDuration: 0,
@@ -2223,6 +2242,7 @@ function chooseWaveBonus(id) {
 
 function startDeathSequence() {
   finalizeRunMetaProgress();
+  clearSniperRuntime();
   world.state = "death_sequence";
   world.grenades = [];
   world.deathSequenceTimer = 2.45;
@@ -2719,6 +2739,45 @@ function audioManager() {
           bus: "sfx",
         },
       );
+    },
+    sniperAimStart() {
+      if (this.volumes.master <= 0 || this.volumes.sfx <= 0) return;
+      this.tone(190, 0.16, "sine", 0.012, {
+        slideTo: 285,
+        filter: { type: "bandpass", frequency: 760, q: 1.4 },
+        bus: "sfx",
+      });
+      this.tone(72, 0.18, "triangle", 0.008, {
+        slideTo: 92,
+        filter: { frequency: 260, q: 0.8 },
+        bus: "sfx",
+      });
+    },
+    sniperLock() {
+      if (this.volumes.master <= 0 || this.volumes.sfx <= 0) return;
+      this.tone(720, 0.1, "sine", 0.016, {
+        slideTo: 1120,
+        filter: { type: "bandpass", frequency: 1900, q: 1.8 },
+        bus: "sfx",
+      });
+    },
+    sniperFire() {
+      if (this.volumes.master <= 0 || this.volumes.sfx <= 0) return;
+      this.burst(0.085, 0.032, {
+        frequency: 3100,
+        q: 1.8,
+        bus: "sfx",
+      });
+      this.tone(1180, 0.1, "sawtooth", 0.024, {
+        slideTo: 240,
+        filter: { type: "bandpass", frequency: 2400, q: 1.2 },
+        bus: "sfx",
+      });
+      this.tone(86, 0.14, "triangle", 0.012, {
+        slideTo: 52,
+        filter: { frequency: 280, q: 0.9 },
+        bus: "sfx",
+      });
     },
     wave(bossWave) {
       this.tone(392, 0.2, "triangle", 0.03, { bus: "sfx" });
@@ -3570,6 +3629,26 @@ function clearAnnouncements() {
   world.pendingSynergyAnnouncements = [];
 }
 
+function clearSniperRuntime() {
+  world.sniperBannerShown = false;
+  world.sniperBeams = [];
+
+  for (const foe of world.foes || []) {
+    if (foe.id !== "sniper") continue;
+    foe.sniperPhase = "idle";
+    foe.sniperAimTimer = 0;
+    foe.sniperLockedAngle = null;
+  }
+
+  if (world.currentWave) {
+    world.currentWave.sniperPlannedCount = 0;
+    world.currentWave.sniperSpawnIndices = [];
+    world.currentWave.sniperSpawnPoints = [];
+    world.currentWave.snipersSpawned = 0;
+    world.currentWave.maxActiveSnipers = 0;
+  }
+}
+
 function syncCheatToastDom() {
   if (!cheatToastRoot) return;
 
@@ -4012,6 +4091,7 @@ function abortRunToSummary() {
   if (world.state !== "paused" && !isActiveRunState(world.state)) return;
 
   forceClosePauseMenu();
+  clearSniperRuntime();
 
   finalizeRunMetaProgress();
 
@@ -4055,6 +4135,7 @@ function returnToMainMenuFromRun() {
   }
 
   forceClosePauseMenu();
+  clearSniperRuntime();
 
   world.pointer.down = false;
   world.enemyShots = [];
@@ -4078,6 +4159,7 @@ function returnToMainMenuFromRun() {
 function returnToMainMenuFromResults() {
   if (world.state !== "gameover") return;
 
+  clearSniperRuntime();
   hideScoreEntry();
   closeMetaOverlay();
   overlay.classList.remove("visible");
@@ -4109,6 +4191,7 @@ function syncMainMenuAudioState() {
 }
 
 function showMainMenu() {
+  clearSniperRuntime();
   clearActiveRunCheats();
   resetWeaponSlotState();
   world.state = "menu";
@@ -5038,6 +5121,7 @@ function menuOverlay() {
 
 function resetGame() {
   clearActiveRunCheats();
+  clearSniperRuntime();
   world.bullets = [];
   world.grenades = [];
   world.grenadeCount = GRENADE_CONFIG.maxCharges;
@@ -5326,6 +5410,11 @@ function applyDamageToFoe(foe, amount, options = {}) {
 }
 
 function updateParticles(dt) {
+  world.sniperBeams = (world.sniperBeams || []).filter((beam) => {
+    beam.life -= dt;
+    return beam.life > 0;
+  });
+
   world.particles = world.particles.filter((p) => {
     p.x += p.vx * dt;
     p.y += p.vy * dt;

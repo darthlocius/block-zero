@@ -1,6 +1,6 @@
 # Block Zero
 
-Current build: **v0.8.0-alpha**
+Current build: **v0.9.0-alpha**
 
 Block Zero is a browser-based top-down wave-survival shooter set in dark industrial ruins. Fight escalating enemy waves, switch weapons in the field, choose augments between waves, and assemble combat synergies while trying to survive as long as possible.
 
@@ -48,6 +48,7 @@ Press the physical `G` key to throw a grenade toward the world-space cursor. The
 - **Tank** — strafing ranged pressure.
 - **Swarm** — fragile melee creatures that arrive in packs.
 - **Tech-Priest of the Swarm** — a shielded support enemy that empowers its allies and emits a damaging signal wave. The wave now has a visible and audible telegraph, its damage falls off toward the edge, and the player can escape the marked area before impact.
+- **Sniper** — a tougher elite ranged threat with a readable two-stage telegraph and a heavy scarlet hitscan beam. Its aim direction locks before firing, and solid cover blocks the shot.
 
 Every fourth wave is a boss wave. Three boss templates rotate through the run: Megabrain, Abomination/Biomass, and Warlord/Overlord.
 
@@ -99,14 +100,14 @@ Credits, upgrades, achievements, Hall of Fame records, the last player name, and
 - No final victory condition or Victory Screen
 - One primary battlefield layout
 - Limited enemy roster and three cyclic bosses
-- Enemy Evolution work such as Sniper, elite modifiers, and a role-based Wave Director is not implemented yet
+- Enemy Evolution work beyond the Sniper, including elite modifiers and a role-based Wave Director, is not implemented yet
 - Some Tech-Priest empowerment visuals are provisional
 
 ## Roadmap
 
 The current public direction is:
 
-**Sniper → elite modifiers → role-based Wave Director → deeper bosses → victory structure and additional maps**
+**Elite modifiers → role-based Wave Director → deeper bosses → victory structure and additional maps**
 
 A possible Steam release is a long-term goal, not a scheduled commitment.
 
