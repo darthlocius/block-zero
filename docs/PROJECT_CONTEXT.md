@@ -75,6 +75,13 @@ Do not use direct `index.html` opening as the recommended launch path. After ass
 - Cheated runs must not enter honest statistics, earnings, achievements, or Hall of Fame records.
 - Avoid speculative refactors and unrelated asset, sound, or music changes.
 
+Repository and rights:
+
+- The public repository is source-available.
+- `ASSET_RIGHTS.md` defines permissions for source code, visual assets, music and audio, and documentation.
+- Public repository access does not grant permission to reuse or redistribute its contents.
+- Do not add an open-source license without a direct decision from the project author.
+
 ## 6. Persistent storage
 
 The game currently uses these `localStorage` keys:

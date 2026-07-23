@@ -123,3 +123,11 @@ A possible Steam release is a long-term goal, not a scheduled commitment.
 - `version.js` — current build version
 - `assets/` — images, music, and sound effects
 - `docs/` — internal project context and release checklist
+
+## Licensing and asset rights
+
+Block Zero is publicly viewable but is not currently released under an open-source license.
+
+The source code, visual assets, music, documentation, and project identity are not licensed for reuse or redistribution unless explicit permission is granted.
+
+See [ASSET_RIGHTS.md](ASSET_RIGHTS.md) for details.
