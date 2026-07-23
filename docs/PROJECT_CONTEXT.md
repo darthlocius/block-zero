@@ -9,7 +9,7 @@ This is the author's first serious game project. A future Steam release is a pos
 ## 2. Current build
 
 ```text
-Current version: 0.7.1-alpha
+Current version: 0.8.0-alpha
 Development status: Alpha
 ```
 
@@ -97,6 +97,9 @@ Gameplay controls use physical `event.code` mappings where layout independence m
 - Mouse — aim.
 - Left mouse button or `Space` — fire.
 - Left or right `Shift` — dash in the current movement direction; dash requires movement input and has a cooldown.
+- `1` (`Digit1`) — switch to the always-available pistol.
+- `2` (`Digit2`) — switch to stored weapon slot 2 when occupied.
+- `3` (`Digit3`) — switch to stored weapon slot 3 when occupied.
 - Hold `E` (`KeyE`) near a weapon pickup — equip it. The current hold duration is 0.35 seconds and the interaction radius is 56 world units.
 - `G` (`KeyG`) — throw a targeted impact grenade toward the world-space cursor.
 - `Esc` — pause/resume an active run, close the topmost menu overlay, return from results, or confirm the finished death sequence where applicable.
@@ -136,6 +139,7 @@ The current build includes:
 - boss warning, boss HP bar, and boss-defeated banner;
 - motion radar and enemies-remaining display;
 - automatic consumable pickups and hold-to-equip weapon pickups;
+- two run-only stored weapon slots with direct `1` / `2` / `3` switching;
 - Hunter Drone support;
 - targeted impact grenades with a three-charge HUD inventory;
 - destructible cover, crates, and explosive barrels;
@@ -150,7 +154,11 @@ There are four active weapon definitions:
 - `shotgun` — Bulldog-8 Shotgun / `Бульдог-8`;
 - `rail` — 40 Wt Plasma Rifle / `Плазменная винтовка 40 Wt` (the Coil Lance family is still reflected in asset/audio filenames).
 
-The player has one active weapon at a time; there are no weapon slots. Weapon pickups are not auto-equipped and require holding `E`. The internal `ARMORY` protocol creates nearby pickups for the three non-default weapons; it does not grant multiple simultaneously active weapons.
+The existing `player.weapon` field remains the single source of truth for the active weapon. The pistol is always available on `1` and does not consume a stored slot. Keys `2` and `3` select two run-only slots that can hold `smg`, `shotgun`, or `rail`.
+
+Weapon pickups still require holding `E`. A new weapon fills the first empty slot from left to right and is equipped immediately. When both slots are occupied, a new pickup replaces the active stored slot; if the pistol is active, it replaces the last selected stored slot. Stored duplicates are forbidden: interacting with a duplicate switches to its existing slot and leaves the pickup on the ground. Slots are cleared on run reset, death completion, abort, and full return to the main menu. They are never written to `localStorage`.
+
+The internal `ARMORY` protocol continues to create nearby pickups for the three non-default weapons; it does not bypass slot rules.
 
 ## 11. Enemies
 
@@ -280,6 +288,8 @@ The game has **16** achievements. They are stored separately under `block-zero-a
 
 Achievements give no gameplay rewards. Once a run becomes cheated, the pre-run achievement snapshot is restored, further tracking is blocked, and unlock persistence is not allowed for that run.
 
+Weapon-streak achievements react only when the active weapon actually changes. Merely storing an id in a slot, reselecting the current slot, or interacting with an already-active duplicate does not create a weapon-switch event.
+
 ## 18. Hall of Fame and run summary
 
 New run results carry:
@@ -293,6 +303,8 @@ New run results carry:
 - an internal cheated-run marker before record submission.
 
 Saved Hall of Fame entries also contain player name and timestamp. Loading normalizes old entries that lack newer fields, and detail rendering avoids duplicating a one-item weapon list. Cheated runs cannot be submitted to Hall of Fame. Their earnings and lifetime-stat updates are blocked, and achievement progress is rolled back. After death, abort, or return to menu clears the active run cheats, the next normal run is honest again.
+
+The run-results screen provides three actions: `Try Again`, `Upgrades`, and `Main Menu`. `Main Menu` uses the centralized results-to-menu path, clears the pending unsaved result and run-only state, and does not create a Hall of Fame entry automatically.
 
 ## 19. Forbidden Protocols — INTERNAL ONLY
 

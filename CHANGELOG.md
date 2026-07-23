@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.8.0-alpha] — In Development
+
+### Added
+
+- Dual run-based weapon slots on keys 2 and 3, displayed next to the grenade HUD.
+- Instant switching between pistol (1) and stored weapons (2 / 3).
+- Automatic storage and activation of newly picked up weapons.
+- CSS-based weapon slot pictograms for SMG, shotgun, and plasma loadouts.
+
+### Changed
+
+- Weapon pickups now fill the first free slot from left to right.
+- When both slots are full, newly picked up weapons replace the active slot.
+- If the pistol is active, a new pickup replaces the last selected weapon slot.
+- Duplicate stored weapons are no longer allowed; interacting with a duplicate pickup switches to the existing slot instead.
+
+### UI
+
+- Added a centered Main Menu button to the run-results screen.
+
 ## [0.7.1-alpha] — In Development
 
 ### Changed

@@ -31,8 +31,14 @@ const scoreValue = document.getElementById("scoreValue");
 const waveValue = document.getElementById("waveValue");
 const comboValue = document.getElementById("comboValue");
 const weaponValue = document.getElementById("weaponValue");
+const combatUtilityHud = document.getElementById("combatUtilityHud");
 const grenadeHud = document.getElementById("grenadeHud");
 const grenadeValue = document.getElementById("grenadeValue");
+const weaponSlotsHud = document.getElementById("weaponSlotsHud");
+const weaponSlot2Hud = document.getElementById("weaponSlot2Hud");
+const weaponSlot3Hud = document.getElementById("weaponSlot3Hud");
+const weaponSlot2Code = document.getElementById("weaponSlot2Code");
+const weaponSlot3Code = document.getElementById("weaponSlot3Code");
 const boostsBar = document.getElementById("boostsBar");
 const waveBonusBadge = document.getElementById("waveBonusBadge");
 const synergyPanel = document.getElementById("synergyPanel");
@@ -52,6 +58,7 @@ const overlayTitle = document.getElementById("overlayTitle");
 const overlayText = document.getElementById("overlayText");
 const overlayButton = document.getElementById("overlayButton");
 const overlayMetaButton = document.getElementById("overlayMetaButton");
+const resultsMainMenuButton = document.getElementById("resultsMainMenuButton");
 const audioPrompt = document.getElementById("audioPrompt");
 const waveClearOverlay = document.getElementById("waveClearOverlay");
 const perkOverlay = document.getElementById("perkOverlay");
@@ -616,6 +623,10 @@ const world = {
   weaponPickupTarget: null,
   weaponPickupHoldTime: 0,
   weaponPickupHoldProgress: 0,
+  weaponPickupRequiresRelease: false,
+  weaponSlots: [null, null],
+  activeWeaponSlot: 0,
+  lastSelectedWeaponSlot: 1,
   destructibles: [],
   decals: [],
   deathEffects: [],
@@ -2254,6 +2265,7 @@ function confirmDeathSequence() {
   if (overlayMetaButton) overlayMetaButton.classList.remove("hidden");
   const runEntry = buildRunResultEntry("death");
   showScoreEntry(runEntry);
+  resetWeaponSlotState();
   clearActiveRunCheats();
   overlay.classList.add("visible");
   renderMetaUpgrades();
@@ -4030,6 +4042,7 @@ function abortRunToSummary() {
 
   const runEntry = buildRunResultEntry("aborted");
   showScoreEntry(runEntry);
+  resetWeaponSlotState();
   clearActiveRunCheats();
 
   overlay.classList.add("visible");
@@ -4097,6 +4110,7 @@ function syncMainMenuAudioState() {
 
 function showMainMenu() {
   clearActiveRunCheats();
+  resetWeaponSlotState();
   world.state = "menu";
   world.grenades = [];
   forceClosePauseMenu();
@@ -4292,6 +4306,130 @@ function currentWeapon() {
     rangeMul: getMetaArmoryRangeMultiplier(),
   };
 }
+
+function getSlottableWeaponIds() {
+  return Object.keys(weapons).filter((weaponId) => weaponId !== "pistol");
+}
+
+function getWeaponSlotIndexByWeaponId(weaponId) {
+  return world.weaponSlots.indexOf(weaponId);
+}
+
+function getFirstEmptyWeaponSlotIndex() {
+  return world.weaponSlots.findIndex((weaponId) => weaponId === null);
+}
+
+function getReplacementWeaponSlotIndex() {
+  if (world.activeWeaponSlot === 1) return 0;
+  if (world.activeWeaponSlot === 2) return 1;
+  return world.lastSelectedWeaponSlot === 2 ? 1 : 0;
+}
+
+function getWeaponSlotShortCode(weaponId) {
+  if (weaponId === "smg") return "SMG";
+  if (weaponId === "shotgun") return "12G";
+  if (weaponId === "rail") return "PLS";
+  return "---";
+}
+
+function activateWeapon(weaponId, activeWeaponSlot) {
+  if (!weapons[weaponId]) return false;
+
+  const previousWeapon = player.weapon;
+  player.weapon = weaponId;
+  world.activeWeaponSlot = activeWeaponSlot;
+
+  if (activeWeaponSlot === 1 || activeWeaponSlot === 2) {
+    world.lastSelectedWeaponSlot = activeWeaponSlot;
+  }
+
+  if (weaponId !== previousWeapon) {
+    trackWeaponChangedForAchievements(weaponId);
+    if (!world.weaponsUsed.includes(weaponId)) {
+      world.weaponsUsed.push(weaponId);
+    }
+  }
+
+  syncHud();
+  return true;
+}
+
+function switchToPistolSlot() {
+  return activateWeapon("pistol", 0);
+}
+
+function switchToWeaponSlot(slotIndex) {
+  if (slotIndex !== 0 && slotIndex !== 1) return false;
+  const weaponId = world.weaponSlots[slotIndex];
+  if (!weaponId) return false;
+  return activateWeapon(weaponId, slotIndex + 1);
+}
+
+function storeWeaponInSlot(slotIndex, weaponId) {
+  if (slotIndex !== 0 && slotIndex !== 1) return false;
+  if (!getSlottableWeaponIds().includes(weaponId)) return false;
+
+  const existingSlotIndex = getWeaponSlotIndexByWeaponId(weaponId);
+  if (existingSlotIndex !== -1 && existingSlotIndex !== slotIndex) return false;
+
+  world.weaponSlots[slotIndex] = weaponId;
+  return true;
+}
+
+function resetWeaponSlotState() {
+  world.weaponSlots = [null, null];
+  world.activeWeaponSlot = 0;
+  world.lastSelectedWeaponSlot = 1;
+  player.weapon = "pistol";
+}
+
+function handleWeaponPickup(pickup) {
+  if (!pickup?.type?.startsWith("weapon-")) return false;
+  const weaponId = pickup.type.replace("weapon-", "");
+  if (!getSlottableWeaponIds().includes(weaponId)) return false;
+
+  const existingSlotIndex = getWeaponSlotIndexByWeaponId(weaponId);
+  if (existingSlotIndex !== -1) {
+    switchToWeaponSlot(existingSlotIndex);
+    return false;
+  }
+
+  const emptySlotIndex = getFirstEmptyWeaponSlotIndex();
+  const targetSlotIndex = emptySlotIndex !== -1
+    ? emptySlotIndex
+    : getReplacementWeaponSlotIndex();
+
+  if (!storeWeaponInSlot(targetSlotIndex, weaponId)) return false;
+  switchToWeaponSlot(targetSlotIndex);
+  banner(currentWeapon().label.toUpperCase(), t("banner.weaponPickup.subtitle"), 1.3, "#86f7ff");
+  audio.pickup(pickup.type);
+  return true;
+}
+
+function syncWeaponSlotsHud() {
+  const slotCards = [weaponSlot2Hud, weaponSlot3Hud];
+  const slotCodes = [weaponSlot2Code, weaponSlot3Code];
+
+  for (let slotIndex = 0; slotIndex < slotCards.length; slotIndex += 1) {
+    const card = slotCards[slotIndex];
+    const code = slotCodes[slotIndex];
+    const weaponId = world.weaponSlots[slotIndex];
+    const occupied = Boolean(weaponId);
+    const active = occupied && world.activeWeaponSlot === slotIndex + 1;
+
+    if (card) {
+      card.dataset.weapon = weaponId || "";
+      card.classList.toggle("is-empty", !occupied);
+      card.classList.toggle("is-active", active);
+      card.setAttribute(
+        "aria-label",
+        `${t(slotIndex === 0 ? "controls.weaponSlot2" : "controls.weaponSlot3")}: ${occupied ? weaponLabel(weaponId) : "---"}`,
+      );
+    }
+    if (code) code.textContent = getWeaponSlotShortCode(weaponId);
+  }
+}
+
 function fireRate() {
   const weapon = currentWeapon();
   return weapon.fireRate
@@ -4522,6 +4660,8 @@ function closeLeaderboardOverlay() {
 }
 
 function showScoreEntry(entry) {
+  resultsMainMenuButton?.classList.remove("hidden");
+
   if (entry?.cheatsUsed) {
     world.pendingLeaderboardEntry = null;
     scoreEntryPanel.classList.add("hidden");
@@ -4541,6 +4681,7 @@ function showScoreEntry(entry) {
 function hideScoreEntry() {
   world.pendingLeaderboardEntry = null;
   scoreEntryPanel.classList.add("hidden");
+  resultsMainMenuButton?.classList.add("hidden");
   saveScoreStatus.textContent = "";
   renderRunSummary(null);
 }
@@ -4648,12 +4789,13 @@ function syncHud() {
   waveValue.textContent = world.wave || 1;
   comboValue.textContent = `x${world.combo.toFixed(1)}`;
   weaponValue.textContent = currentWeapon().label;
-  const grenadeHudVisible = isActiveRunState(world.state)
+  const combatUtilityHudVisible = isActiveRunState(world.state)
     || (
       world.state === "paused"
       && isActiveRunState(world.stateBeforePause)
     );
-  grenadeHud?.classList.toggle("hidden", !grenadeHudVisible);
+  combatUtilityHud?.classList.toggle("hidden", !combatUtilityHudVisible);
+  syncWeaponSlotsHud();
   if (grenadeValue) {
     grenadeValue.textContent = `×${world.grenadeCount}`;
   }
@@ -4911,6 +5053,7 @@ function resetGame() {
   world.weaponPickupTarget = null;
   world.weaponPickupHoldTime = 0;
   world.weaponPickupHoldProgress = 0;
+  world.weaponPickupRequiresRelease = false;
   world.gibs = [];
   world.muzzleFlashes = [];
   world.deathEffects = [];
@@ -4973,7 +5116,7 @@ function resetGame() {
   player.y = world.height / 2;
   player.maxHealth = player.baseMaxHealth + getMetaMaxHealthBonus();
   player.health = player.maxHealth;
-  player.weapon = "pistol";
+  resetWeaponSlotState();
   resetRunAchievementStats();
   world.achievementStateSnapshot = cloneAchievementState();
   player.fireCooldown = 0;
@@ -5605,6 +5748,7 @@ export {
   overlayText,
   overlayButton,
   overlayMetaButton,
+  resultsMainMenuButton,
   audioPrompt,
   perkOverlay,
   perkSynergyGuideButton,
@@ -5717,6 +5861,17 @@ export {
   resizeGameViewportForFullscreen,
   moveVector,
   currentWeapon,
+  getSlottableWeaponIds,
+  getWeaponSlotIndexByWeaponId,
+  getFirstEmptyWeaponSlotIndex,
+  getReplacementWeaponSlotIndex,
+  getWeaponSlotShortCode,
+  switchToPistolSlot,
+  switchToWeaponSlot,
+  storeWeaponInSlot,
+  resetWeaponSlotState,
+  handleWeaponPickup,
+  syncWeaponSlotsHud,
   fireRate,
   moveSpeed,
   loadLeaderboard,

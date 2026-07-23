@@ -23,6 +23,7 @@ import {
   openLeaderboardButton,
   overlayButton,
   overlayMetaButton,
+  resultsMainMenuButton,
   closeMetaButton,
   metaSynergyGuideButton,
   perkSynergyGuideButton,
@@ -88,6 +89,8 @@ import {
   setMetaUpgradeTab,
   syncPointerWorld,
   resizeGameViewportForFullscreen,
+  switchToPistolSlot,
+  switchToWeaponSlot,
 } from "./game.js";
 import { shoot, dash } from "./bullet.js";
 import { forceSpawnTechpriestNow } from "./enemy.js";
@@ -400,6 +403,26 @@ function initInput() {
     }
 
     if (
+      world.state === "playing"
+      && ["Digit1", "Digit2", "Digit3"].includes(event.code)
+    ) {
+      event.preventDefault();
+
+      if (
+        !event.repeat
+        && !event.ctrlKey
+        && !event.altKey
+        && !event.metaKey
+      ) {
+        if (event.code === "Digit1") switchToPistolSlot();
+        if (event.code === "Digit2") switchToWeaponSlot(0);
+        if (event.code === "Digit3") switchToWeaponSlot(1);
+      }
+
+      return;
+    }
+
+    if (
       event.code === "KeyG"
       && world.state === "playing"
     ) {
@@ -491,6 +514,7 @@ function initInput() {
   menuMetaButton?.addEventListener("click", openMetaOverlay);
   openLeaderboardButton?.addEventListener("click", openLeaderboardOverlay);
   overlayMetaButton?.addEventListener("click", openMetaOverlay);
+  resultsMainMenuButton?.addEventListener("click", returnToMainMenuFromResults);
   metaSynergyGuideButton?.addEventListener("click", openSynergyGuideOverlay);
   perkSynergyGuideButton?.addEventListener("click", (event) => {
     event.preventDefault();

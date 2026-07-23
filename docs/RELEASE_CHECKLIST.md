@@ -69,7 +69,7 @@ The full reset also deletes `blockZeroLanguage` and any other `localStorage` dat
 
 ## 5. Main menu
 
-- [ ] Only `v0.7.1-alpha` is visible as the build label; it is readable but unobtrusive.
+- [ ] Only `v0.8.0-alpha` is visible as the build label; it is readable but unobtrusive.
 - [ ] Build label does not behave like a button or intercept pointer input.
 - [ ] EN is the default on a fully clean origin.
 - [ ] EN/RU switching updates all visible menu and overlay text.
@@ -104,7 +104,48 @@ Start after the targeted reset:
 - [ ] A qualifying achievement persists and its toast queues correctly.
 - [ ] The run can be saved to Hall of Fame and its detail report is complete.
 
-## 7. Cheated run
+### Run-results actions
+
+- [ ] `Try Again` and `Upgrades` remain in the first horizontal row at normal panel width.
+- [ ] `Main Menu` is centered in a second row, matches the secondary `Upgrades` style, and remains inside the panel in fullscreen and narrow layouts.
+- [ ] EN shows `Main Menu`; RU shows `Главное меню`.
+- [ ] `Main Menu` returns immediately through the normal results-to-menu path without starting a run, opening Upgrades, or saving a pending Hall of Fame result.
+- [ ] Returning this way hides the combat HUD and clears weapon slots, active run cheats, grenades/in-flight grenade state, pause state, and other run-only state.
+- [ ] A result saved explicitly with `Save` remains in Hall of Fame after returning to the main menu.
+- [ ] `Try Again`, `Upgrades`, and `Save` still perform their existing actions.
+
+## 7. Dual weapon slots
+
+### State, input, and HUD
+
+- [ ] A new run starts on the pistol with both stored slots empty.
+- [ ] Physical `Digit1` selects the pistol; `Digit2` and `Digit3` select occupied slots and do nothing for empty slots.
+- [ ] Slot switching works under EN and RU layouts, only during `playing`, and does not affect text inputs or Forbidden Protocol entry.
+- [ ] The bottom-left utility HUD is one horizontal row: grenade counter, slot 2, then slot 3.
+- [ ] Empty slots are visibly subdued, the active stored slot is highlighted, and pistol mode highlights neither stored slot.
+- [ ] SMG, shotgun, and plasma slots show distinct CSS pictograms and the codes `SMG`, `12G`, and `PLS`.
+- [ ] Grenade count, empty state, refill pulse, and empty pulse still behave as before.
+
+### Pickup and replacement rules
+
+- [ ] Hold `E` still uses a 56-unit radius, 0.35-second duration, prompt, and progress bar.
+- [ ] The first unique pickup fills slot 2 and auto-equips; the second fills slot 3 and auto-equips.
+- [ ] A duplicate switches to its existing slot, remains on the ground, and cannot retrigger until `E` is released.
+- [ ] With both slots full, a unique pickup replaces the active stored slot.
+- [ ] With the pistol active, a unique pickup replaces the last selected stored slot.
+- [ ] No slot can contain the pistol and the two stored slots cannot contain duplicate weapon ids.
+
+### Integrity and reset
+
+- [ ] Actual weapon changes update `weaponsUsed` once and reset weapon-streak achievement tracking once.
+- [ ] Reselecting the active slot and interacting with an already-active duplicate do not create false switch events.
+- [ ] Mr. Wick and 12 Gauge Fury react only to real active-weapon changes.
+- [ ] Final weapon and unique weapons used remain correct in run summary and Hall of Fame details.
+- [ ] Death completion, abort, return to menu, and a new run clear both slots and restore the pistol.
+- [ ] No weapon-slot state or new key is written to `localStorage`.
+- [ ] Normal, narrow-window, and fullscreen layouts keep the utility HUD readable without critical overlap.
+
+## 8. Cheated run
 
 Internal codes may be used here. Suggested coverage:
 
@@ -123,14 +164,14 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Active run cheats clear after death, abort, or return to the main menu.
 - [ ] The next normal run is honest and can save progression normally.
 
-## 8. RICHMAN exception
+## 9. RICHMAN exception
 
 - [ ] Enter `RICHMAN` from the unobstructed main menu.
 - [ ] Exactly 1000 credits are added and persist.
 - [ ] No current or next-run cheated status is set.
 - [ ] A subsequent honest run awards credits, achievements, statistics, and Hall of Fame eligibility normally.
 
-## 9. Targeted impact grenades
+## 10. Targeted impact grenades
 
 ### Basic throw and HUD
 
@@ -173,7 +214,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] A subsequent new run starts again with three charges.
 - [ ] Three quick throws do not cause a noticeable FPS drop, long-lived smoke, retained particles, or console errors.
 
-## 10. Tech-Priest signal-wave rebalance
+## 11. Tech-Priest signal-wave rebalance
 
 ### First impact and telegraph
 
@@ -211,7 +252,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Consecutive impacts are about 4.85–6.05 seconds apart, and multiple impacts cannot start in the same frame.
 - [ ] Tech-Priest HP, shield, armor, blaster stats, ally-buff coefficients, spawn chance, pity logic, spawn timing, rewards, and loot are unchanged.
 
-## 11. Display modes
+## 12. Display modes
 
 - [ ] Non-fullscreen layout is usable at the normal viewport size.
 - [ ] True fullscreen resizes the real canvas and reveals more world area.
@@ -222,7 +263,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Crosshair and shots align with the pointer after resize and fullscreen transitions.
 - [ ] Main menu, overlays, and version label do not introduce horizontal scroll.
 
-## 12. Final release gate
+## 13. Final release gate
 
 - [ ] All syntax checks pass.
 - [ ] Manual smoke test passes.
@@ -234,5 +275,5 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Windowed/fullscreen test passes.
 - [ ] Git diff has been reviewed and contains no unintended gameplay or asset changes.
 - [ ] A recoverable archive backup exists.
-- [ ] `v0.7.1-alpha` is visible in the main menu.
+- [ ] `v0.8.0-alpha` is visible in the main menu.
 - [ ] `CHANGELOG.md` matches the candidate build.

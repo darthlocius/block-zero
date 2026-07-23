@@ -39,7 +39,19 @@
         </div>
         <div>
           <span data-i18n="controls.dash">Dash</span>
-          <strong>Shift</strong>
+          <strong data-i18n="controls.dashKeys">Shift</strong>
+        </div>
+        <div>
+          <span data-i18n="controls.weaponPistol">Pistol</span>
+          <strong data-i18n="controls.weaponPistolKeys">1</strong>
+        </div>
+        <div>
+          <span data-i18n="controls.weaponSlot2">Weapon slot 2</span>
+          <strong data-i18n="controls.weaponSlot2Keys">2</strong>
+        </div>
+        <div>
+          <span data-i18n="controls.weaponSlot3">Weapon slot 3</span>
+          <strong data-i18n="controls.weaponSlot3Keys">3</strong>
         </div>
         <div>
           <span data-i18n="controls.grenade">Impact grenade</span>
@@ -145,6 +157,9 @@
             <div><span data-i18n="controls.aim">Aim</span><strong data-i18n="controls.aimKeys">Mouse</strong></div>
             <div><span data-i18n="controls.fire">Fire</span><strong data-i18n="controls.fireKeys">LMB / space</strong></div>
             <div><span data-i18n="controls.dash">Dash</span><strong data-i18n="controls.dashKeys">Shift</strong></div>
+            <div><span data-i18n="controls.weaponPistol">Pistol</span><strong data-i18n="controls.weaponPistolKeys">1</strong></div>
+            <div><span data-i18n="controls.weaponSlot2">Weapon slot 2</span><strong data-i18n="controls.weaponSlot2Keys">2</strong></div>
+            <div><span data-i18n="controls.weaponSlot3">Weapon slot 3</span><strong data-i18n="controls.weaponSlot3Keys">3</strong></div>
             <div><span data-i18n="controls.weaponPickup">Equip weapon</span><strong data-i18n="controls.weaponPickupKeys">Hold E</strong></div>
             <div><span data-i18n="controls.grenade">Impact grenade</span><strong data-i18n="controls.grenadeKeys">G</strong></div>
           </div>
@@ -195,14 +210,39 @@
           </div>
         </div>
 
-        <div
-          id="grenadeHud"
-          class="grenade-hud hidden"
-          aria-live="polite"
-        >
-          <span class="grenade-hud-icon" aria-hidden="true"></span>
-          <span class="grenade-hud-key" aria-hidden="true">G</span>
-          <strong id="grenadeValue" class="grenade-hud-value">×3</strong>
+        <div id="combatUtilityHud" class="combat-utility-hud hidden">
+          <div
+            id="grenadeHud"
+            class="grenade-hud"
+            aria-live="polite"
+          >
+            <span class="grenade-hud-icon" aria-hidden="true"></span>
+            <span class="grenade-hud-key" aria-hidden="true">G</span>
+            <strong id="grenadeValue" class="grenade-hud-value">×3</strong>
+          </div>
+
+          <div id="weaponSlotsHud" class="weapon-slots-hud" aria-live="polite">
+            <div
+              id="weaponSlot2Hud"
+              class="weapon-slot-card is-empty"
+              data-slot="2"
+              data-weapon=""
+            >
+              <span class="weapon-slot-key" aria-hidden="true">2</span>
+              <span class="weapon-slot-icon" aria-hidden="true"></span>
+              <strong id="weaponSlot2Code" class="weapon-slot-code">---</strong>
+            </div>
+            <div
+              id="weaponSlot3Hud"
+              class="weapon-slot-card is-empty"
+              data-slot="3"
+              data-weapon=""
+            >
+              <span class="weapon-slot-key" aria-hidden="true">3</span>
+              <span class="weapon-slot-icon" aria-hidden="true"></span>
+              <strong id="weaponSlot3Code" class="weapon-slot-code">---</strong>
+            </div>
+          </div>
         </div>
 
         <div id="waveClearOverlay" class="cinematic-overlay wave-clear-overlay" aria-live="polite">
@@ -279,9 +319,17 @@
               <p id="saveScoreStatus" class="score-entry-status"></p>
             </div>
 
-            <div class="overlay-actions">
+            <div class="overlay-actions results-actions">
               <button id="overlayButton" class="action action-secondary">To Battle</button>
               <button id="overlayMetaButton" class="action action-ghost" data-i18n="ui.upgrades">Upgrades</button>
+              <button
+                id="resultsMainMenuButton"
+                class="action action-ghost results-main-menu-button hidden"
+                type="button"
+                data-i18n="results.mainMenu"
+              >
+                Main Menu
+              </button>
             </div>
           </div>
         </div>

@@ -3,7 +3,6 @@ import {
   world,
   buffs,
   banner,
-  currentWeapon,
   getMetaHealingMultiplier,
   moveSpeed,
   moveVector,
@@ -13,7 +12,7 @@ import {
   updateActorFacing,
   playerAnimationState,
   syncHud,
-  trackWeaponChangedForAchievements,
+  handleWeaponPickup,
 } from "./game.js";
 import { moveActor } from "./collision.js";
 import { shoot } from "./bullet.js";
@@ -36,18 +35,7 @@ function resetWeaponPickupHold() {
 
 function applyPickup(pickup) {
   if (pickup.type.startsWith("weapon-")) {
-    const previousWeapon = player.weapon;
-    player.weapon = pickup.type.replace("weapon-", "");
-    if (player.weapon !== previousWeapon) {
-      trackWeaponChangedForAchievements(player.weapon);
-    }
-
-    if (!world.weaponsUsed.includes(player.weapon)) {
-      world.weaponsUsed.push(player.weapon);
-    }
-
-    banner(currentWeapon().label.toUpperCase(), t("banner.weaponPickup.subtitle"), 1.3, "#86f7ff");
-    syncHud();
+    return handleWeaponPickup(pickup);
   } else if (pickup.type === "med") {
     player.health = Math.min(player.maxHealth, player.health + 32 * getMetaHealingMultiplier());
     banner(t("banner.medkit.title"), t("banner.medkit.subtitle"), 1.2, "#7cff93");
@@ -57,6 +45,7 @@ function applyPickup(pickup) {
     banner(t(`boost.${pickup.type}`).toUpperCase(), t("banner.boostPickup.subtitle"), 1.2, buffs[pickup.type].color);
   }
   audio.pickup(pickup.type);
+  return true;
 }
 
 function updatePlayer(dt, canShoot) {
@@ -112,6 +101,10 @@ function updatePickups(dt) {
 
   world.weaponPickupPromptTarget = nearestWeaponPickup;
 
+  if (!world.keys.has("interact")) {
+    world.weaponPickupRequiresRelease = false;
+  }
+
   if (!nearestWeaponPickup) {
     resetWeaponPickupHold();
     return;
@@ -129,13 +122,22 @@ function updatePickups(dt) {
     return;
   }
 
+  if (world.weaponPickupRequiresRelease) {
+    world.weaponPickupHoldTime = 0;
+    world.weaponPickupHoldProgress = 0;
+    return;
+  }
+
   world.weaponPickupHoldTime += dt;
   world.weaponPickupHoldProgress = Math.min(1, world.weaponPickupHoldTime / WEAPON_EQUIP_HOLD_DURATION);
 
   if (world.weaponPickupHoldTime >= WEAPON_EQUIP_HOLD_DURATION) {
-    applyPickup(nearestWeaponPickup);
-    world.pickups = world.pickups.filter((pickup) => pickup !== nearestWeaponPickup);
-    world.weaponPickupPromptTarget = null;
+    const pickupUsed = applyPickup(nearestWeaponPickup);
+    if (pickupUsed) {
+      world.pickups = world.pickups.filter((pickup) => pickup !== nearestWeaponPickup);
+      world.weaponPickupPromptTarget = null;
+    }
+    world.weaponPickupRequiresRelease = true;
     resetWeaponPickupHold();
   }
 }

@@ -1,6 +1,6 @@
 # Block Zero
 
-Current build: **v0.7.1-alpha**
+Current build: **v0.8.0-alpha**
 
 Block Zero is a browser-based top-down wave-survival shooter set in dark industrial ruins. Fight escalating enemy waves, switch weapons in the field, choose augments between waves, and assemble combat synergies while trying to survive as long as possible.
 
@@ -17,7 +17,7 @@ Block Zero is in alpha and active development. The main survival loop is playabl
 - Procedural battlefield details, destructible cover, crates, and explosive barrels
 - Augment cards with rarity, rerolls, Expanded Selection, and Synergy Scanner
 - Five tag-driven combat synergies with guide and progress feedback
-- Hunter Drone support and field weapon pickups
+- Hunter Drone support and run-based dual weapon slots
 - Targeted impact grenades with arcing flight, area damage, and a limited three-charge inventory
 - Permanent General/Tactical Protocol and Armory upgrades
 - Sixteen achievements, Hall of Fame records, and detailed run summaries
@@ -26,14 +26,16 @@ Block Zero is in alpha and active development. The main survival loop is playabl
 
 ## Weapons
 
-The player uses one weapon at a time:
+The player fires one active weapon at a time:
 
 - Pistol
 - SMG Viper
 - Bulldog-8 Shotgun
 - 40 Wt Plasma Rifle
 
-Weapon pickups are not equipped automatically. Move close to one and hold `E` to switch.
+The pistol is always available on `1` and does not consume a slot. Two additional weapons can be stored for the current run and selected with `2` and `3`.
+
+Move close to a weapon pickup and hold `E`. A new weapon fills the first empty slot from left to right and becomes active immediately. When both slots are full, a pickup replaces the active stored slot; while the pistol is active, it replaces the last selected stored slot. Duplicate stored weapons are not allowed: a duplicate pickup switches to the existing slot and remains on the ground. Slot contents reset between runs and are not saved in `localStorage`.
 
 ## Targeted impact grenades
 
@@ -61,7 +63,10 @@ Achievements are trophies only and do not grant gameplay rewards. Runs that use 
 - Mouse — aim
 - Left mouse button or `Space` — fire
 - `Shift` — dash while moving
-- Hold `E` near a weapon — equip it
+- `1` — switch to the pistol
+- `2` — switch to weapon slot 2
+- `3` — switch to weapon slot 3
+- Hold `E` near a weapon — store or replace it and equip it
 - `G` — throw a targeted impact grenade
 - `Esc` — pause/resume or close the current overlay
 - Fullscreen — use the fullscreen button in the UI
@@ -86,7 +91,7 @@ Then open [http://localhost:8000](http://localhost:8000). If updated assets appe
 
 ## Saving and reset
 
-Credits, upgrades, achievements, Hall of Fame records, the last player name, and the selected language are stored in browser `localStorage`. Clearing site data resets that progress. See `docs/RELEASE_CHECKLIST.md` for targeted clean-profile commands used during release testing.
+Credits, upgrades, achievements, Hall of Fame records, the last player name, and the selected language are stored in browser `localStorage`. Weapon slots are run-only and are never persisted. Clearing site data resets saved progress. See `docs/RELEASE_CHECKLIST.md` for targeted clean-profile commands used during release testing.
 
 ## Current limitations
 

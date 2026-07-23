@@ -441,6 +441,12 @@ h1 {
   gap: 12px;
 }
 
+.results-main-menu-button {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: calc((100% - 12px) / 2);
+}
+
 .arena-shell {
   width: 100%;
   display: flex;
@@ -787,11 +793,26 @@ body.has-main-menu .canvas-frame {
   font-size: 0.72rem;
 }
 
-.grenade-hud {
+.combat-utility-hud {
   position: absolute;
   left: 18px;
   bottom: 18px;
   z-index: 9;
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  pointer-events: none;
+  user-select: none;
+  transform-origin: left bottom;
+}
+
+.weapon-slots-hud {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.grenade-hud {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -810,12 +831,201 @@ body.has-main-menu .canvas-frame {
     0 0 18px rgba(116, 255, 77, 0.12),
     0 8px 20px rgba(0, 0, 0, 0.3);
   color: #9cff2f;
-  pointer-events: none;
-  user-select: none;
   transition:
     transform 120ms ease,
     filter 120ms ease,
     border-color 160ms ease;
+}
+
+.weapon-slot-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 38px;
+  grid-template-rows: 24px 14px;
+  align-items: center;
+  column-gap: 7px;
+  min-width: 83px;
+  padding: 7px 9px;
+  border: 1px solid rgba(156, 255, 47, 0.38);
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(7, 18, 11, 0.86),
+      rgba(3, 9, 6, 0.78)
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 14px rgba(116, 255, 77, 0.09),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+  color: #9cff2f;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease,
+    opacity 150ms ease;
+}
+
+.weapon-slot-card::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid #d9ffbc;
+  filter: drop-shadow(0 0 5px rgba(156, 255, 47, 0.9));
+  opacity: 0;
+  transform: translateX(-50%);
+}
+
+.weapon-slot-card.is-active {
+  border-color: rgba(203, 255, 151, 0.92);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    inset 0 3px 10px rgba(156, 255, 47, 0.08),
+    0 0 19px rgba(116, 255, 77, 0.28),
+    0 8px 20px rgba(0, 0, 0, 0.34);
+  filter: brightness(1.16);
+}
+
+.weapon-slot-card.is-active::after {
+  opacity: 1;
+}
+
+.weapon-slot-card.is-empty {
+  border-color: rgba(156, 255, 47, 0.18);
+  opacity: 0.48;
+  filter: saturate(0.62);
+}
+
+.weapon-slot-card.is-empty::after {
+  opacity: 0;
+}
+
+.weapon-slot-key {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 30px;
+  border: 1px solid rgba(156, 255, 47, 0.48);
+  border-radius: 6px;
+  color: #dfffc4;
+  background: rgba(156, 255, 47, 0.08);
+  font-family: "Russo One", sans-serif;
+  font-size: 0.76rem;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.22);
+}
+
+.weapon-slot-icon {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  width: 38px;
+  height: 22px;
+  color: #b9ff73;
+  filter: drop-shadow(0 0 4px rgba(156, 255, 47, 0.36));
+}
+
+.weapon-slot-icon::before,
+.weapon-slot-icon::after {
+  content: "";
+  position: absolute;
+}
+
+.weapon-slot-card.is-empty .weapon-slot-icon::before {
+  left: 9px;
+  top: 10px;
+  width: 20px;
+  height: 2px;
+  background: rgba(156, 255, 47, 0.48);
+}
+
+.weapon-slot-card[data-weapon="smg"] .weapon-slot-icon::before {
+  left: 2px;
+  top: 5px;
+  width: 29px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: 2px 1px 1px 3px;
+  background: linear-gradient(90deg, rgba(156, 255, 47, 0.28), rgba(156, 255, 47, 0.06));
+  clip-path: polygon(0 0, 76% 0, 84% 30%, 100% 30%, 100% 64%, 69% 64%, 62% 100%, 18% 100%, 14% 70%, 0 70%);
+}
+
+.weapon-slot-card[data-weapon="smg"] .weapon-slot-icon::after {
+  left: 15px;
+  top: 12px;
+  width: 7px;
+  height: 8px;
+  border: 1px solid currentColor;
+  border-radius: 1px 1px 2px 2px;
+  background: rgba(156, 255, 47, 0.16);
+  transform: skew(-10deg);
+}
+
+.weapon-slot-card[data-weapon="shotgun"] .weapon-slot-icon::before {
+  left: 1px;
+  top: 5px;
+  width: 35px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 4px 1px 1px 4px;
+  background:
+    linear-gradient(180deg, rgba(156, 255, 47, 0.32), rgba(156, 255, 47, 0.05));
+  box-sizing: border-box;
+}
+
+.weapon-slot-card[data-weapon="shotgun"] .weapon-slot-icon::after {
+  left: 5px;
+  top: 13px;
+  width: 13px;
+  height: 6px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0 0 0 3px;
+  transform: skew(-22deg);
+}
+
+.weapon-slot-card[data-weapon="rail"] .weapon-slot-icon::before {
+  left: 1px;
+  top: 4px;
+  width: 35px;
+  height: 11px;
+  border: 1px solid currentColor;
+  border-radius: 7px 3px 3px 7px;
+  background:
+    radial-gradient(circle at 55% 50%, #eaffd9 0 12%, #78ffc9 15% 24%, transparent 28%),
+    linear-gradient(90deg, rgba(82, 255, 217, 0.12), rgba(156, 255, 47, 0.28), rgba(82, 255, 217, 0.08));
+  box-shadow: inset 0 0 7px rgba(82, 255, 217, 0.38);
+}
+
+.weapon-slot-card[data-weapon="rail"] .weapon-slot-icon::after {
+  left: 11px;
+  top: 15px;
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: skew(-18deg);
+}
+
+.weapon-slot-code {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: end;
+  color: #c9ff97;
+  font-family: "Russo One", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-shadow: 0 0 7px rgba(156, 255, 47, 0.45);
 }
 
 .grenade-hud-key {
@@ -1099,7 +1309,7 @@ canvas {
   top: 18px;
 }
 
-.fullscreen-root:fullscreen .grenade-hud {
+.fullscreen-root:fullscreen .combat-utility-hud {
   left: 22px;
   bottom: 22px;
 }
@@ -3297,18 +3507,15 @@ body.is-game-fullscreen {
 }
 
 @media (max-width: 720px) {
-  .grenade-hud {
+  .combat-utility-hud {
     left: 10px;
     bottom: 10px;
-    min-width: 104px;
-    gap: 8px;
-    padding: 7px 11px 7px 10px;
-    transform: scale(0.88);
-    transform-origin: left bottom;
+    gap: 7px;
+    transform: scale(0.82);
   }
 
-  .grenade-hud.is-pulsing {
-    transform: scale(0.92);
+  .weapon-slots-hud {
+    gap: 7px;
   }
 
   .achievement-toast-root {
@@ -3413,5 +3620,10 @@ body.is-game-fullscreen {
 
   .score-entry-controls {
     grid-template-columns: 1fr;
+  }
+
+  .results-main-menu-button {
+    grid-column: 1;
+    width: 100%;
   }
 }
