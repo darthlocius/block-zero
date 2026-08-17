@@ -17,6 +17,7 @@ node --check bullet.js
 node --check collision.js
 node --check main.js
 node --check i18n.js
+node --check storage.js
 node --check version.js
 ```
 
@@ -73,6 +74,7 @@ The full reset also deletes `blockZeroLanguage` and any other `localStorage` dat
 - [ ] Build label does not behave like a button or intercept pointer input.
 - [ ] EN is the default on a fully clean origin.
 - [ ] EN/RU switching updates all visible menu and overlay text.
+- [ ] EN weapon HUD and pickup banners never show Russian internal registry labels; RU uses the translated weapon names in both paths.
 - [ ] Audio panel opens, closes, and applies master/music/effects levels.
 - [ ] Fullscreen buttons enter/exit true fullscreen and report the correct state.
 - [ ] Controls overlay opens and closes.
@@ -103,6 +105,7 @@ Start after the targeted reset:
 - [ ] Run credits are awarded once and persist after reload.
 - [ ] A qualifying achievement persists and its toast queues correctly.
 - [ ] The run can be saved to Hall of Fame and its detail report is complete.
+- [ ] Simulated `localStorage` write failure does not crash the game, language switch, or result screen.
 
 ### Run-results actions
 

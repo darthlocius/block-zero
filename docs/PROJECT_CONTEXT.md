@@ -54,6 +54,7 @@ Do not use direct `index.html` opening as the recommended launch path. After ass
 - `bullet.js` — player/enemy projectiles, weapon fire, dash, hit processing, and projectile-driven synergy effects.
 - `collision.js` — actor/solid collision, non-mutating segment/solid intersection, destructible damage, projectile obstruction, and barrel explosion damage.
 - `i18n.js` — EN/RU strings, language persistence, translation helpers, and static DOM translation.
+- `storage.js` — dependency-free safe wrappers for browser persistence reads, writes, and removals.
 - `index.html` — DOM structure for the canvas, HUD, main menu, modals, pause screen, results, achievements, and Hall of Fame.
 - `style.css` — layout and presentation for DOM UI, overlays, responsive states, and fullscreen behavior.
 - `assets/` — images, music, and sound effects loaded directly by the game.
@@ -66,6 +67,8 @@ Do not use direct `index.html` opening as the recommended launch path. After ass
 - Fullscreen must use the Fullscreen API and resize the real canvas; do not replace it with CSS-only scaling.
 - Preserve pointer accuracy after canvas or camera changes.
 - Keep all persistent storage backward-compatible. Do not rename or clear keys without an explicit migration task.
+- Route persistent reads, writes, and removals through the safe helpers in `storage.js`; storage failures must not interrupt UI or gameplay flows.
+- Render visible weapon names through `weaponLabel(id)` / `i18n.js`, never directly from internal weapon registry labels.
 - Maintain complete EN/RU UI coverage and keep EN as the default language.
 - Keep DOM ids unique.
 - Fullscreen is controlled through UI buttons, never the `F` key.
@@ -74,6 +77,8 @@ Do not use direct `index.html` opening as the recommended launch path. After ass
 - Achievements are trophies and must not grant credits, stats, or combat rewards.
 - Cheated runs must not enter honest statistics, earnings, achievements, or Hall of Fame records.
 - Avoid speculative refactors and unrelated asset, sound, or music changes.
+- `game.js` remains intentionally broad for now; do not mass-refactor it as part of unrelated maintenance.
+- Future systems should avoid adding unnecessary responsibilities to `game.js`. Field Engineering and turret logic must live in a separate module rather than being placed wholesale into `game.js`.
 
 Repository and rights:
 
@@ -95,6 +100,8 @@ The game currently uses these `localStorage` keys:
 | `blockZeroLanguage` | Selected `en` or `ru` interface language. |
 
 Older Hall of Fame records may lack newer fields such as `creditsEarned`, `creditsTotal`, `weaponsUsed`, `synergies`, `duration`, `maxCombo`, or `endReason`. Loading and display code must continue to normalize absent fields safely. Do not change key names or serialized formats without a separate, backward-compatible migration.
+
+All key names and JSON schemas above remain backward-compatible. Storage failures use fallback values or a `false` write/remove result and do not trigger migration, data clearing, or runtime failure.
 
 ## 7. Controls and input
 
@@ -434,6 +441,7 @@ NUKE
 - No milestone megaboss every 15 waves.
 - Tech-Priest empowerment visuals are provisional.
 - Some old internal Russian strings remain in content definitions even though visible UI paths are localized through `i18n.js`.
+- `.gitattributes` defines LF normalization for future text changes; the existing tree was not mass-renormalized when the rule was introduced.
 - Documentation had drifted before this checkpoint; future changes must update this context and README alongside the implementation.
 
 ## 22. Current roadmap

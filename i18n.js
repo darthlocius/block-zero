@@ -1,3 +1,5 @@
+import { safeStorageGet, safeStorageSet } from "./storage.js";
+
 const LANGUAGE_STORAGE_KEY = "blockZeroLanguage";
 
 const LANGUAGES = {
@@ -816,7 +818,7 @@ Object.assign(I18N.ru, {
   "metaUpgrade.armory_pierce.description": "+1 к пробитию за уровень для пистолета, SMG и плазменной винтовки. Дробовик не получает пробитие.",
 });
 
-let currentLanguage = normalizeLanguage(localStorage.getItem(LANGUAGE_STORAGE_KEY));
+let currentLanguage = normalizeLanguage(safeStorageGet(LANGUAGE_STORAGE_KEY));
 const languageListeners = new Set();
 
 function normalizeLanguage(lang) {
@@ -848,7 +850,7 @@ function setLanguage(lang) {
     return currentLanguage;
   }
   currentLanguage = next;
-  localStorage.setItem(LANGUAGE_STORAGE_KEY, currentLanguage);
+  safeStorageSet(LANGUAGE_STORAGE_KEY, currentLanguage);
   updateStaticTranslations();
   updateLanguageSwitcher();
   for (const listener of languageListeners) listener(currentLanguage);

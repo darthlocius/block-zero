@@ -1,6 +1,7 @@
 ﻿// Shared game state, assets, UI helpers, and reusable systems.
 
 import { addLanguageChangeListener, getLanguage, t } from "./i18n.js";
+import { safeStorageGet, safeStorageSet } from "./storage.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -1511,7 +1512,7 @@ function queueBossWarning(bossName) {
 
 function loadAchievementState() {
   try {
-    const raw = localStorage.getItem(ACHIEVEMENTS_STORAGE_KEY);
+    const raw = safeStorageGet(ACHIEVEMENTS_STORAGE_KEY);
     if (!raw) return defaultAchievementState();
 
     const parsed = JSON.parse(raw);
@@ -1530,11 +1531,7 @@ function loadAchievementState() {
 }
 
 function saveAchievementState() {
-  try {
-    localStorage.setItem(ACHIEVEMENTS_STORAGE_KEY, JSON.stringify(achievementState));
-  } catch (error) {
-    console.warn("Failed to save achievements", error);
-  }
+  return safeStorageSet(ACHIEVEMENTS_STORAGE_KEY, JSON.stringify(achievementState));
 }
 
 function cloneAchievementState(state = achievementState) {
@@ -3958,7 +3955,7 @@ function normalizeMetaState(data = {}) {
 
 function loadMetaProgress() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(META_PROGRESS_KEY) || "{}");
+    const parsed = JSON.parse(safeStorageGet(META_PROGRESS_KEY, "{}"));
     return normalizeMetaState(parsed);
   } catch {
     return createDefaultMetaState();
@@ -3967,7 +3964,7 @@ function loadMetaProgress() {
 
 function saveMetaProgress() {
   metaState.unlockedMetaUpgrades = Object.keys(metaState.metaUpgradeLevels).filter((id) => metaState.metaUpgradeLevels[id] > 0);
-  localStorage.setItem(META_PROGRESS_KEY, JSON.stringify(metaState));
+  return safeStorageSet(META_PROGRESS_KEY, JSON.stringify(metaState));
 }
 
 function getMetaUpgradeLevel(id) {
@@ -4484,7 +4481,7 @@ function handleWeaponPickup(pickup) {
 
   if (!storeWeaponInSlot(targetSlotIndex, weaponId)) return false;
   switchToWeaponSlot(targetSlotIndex);
-  banner(currentWeapon().label.toUpperCase(), t("banner.weaponPickup.subtitle"), 1.3, "#86f7ff");
+  banner(weaponLabel(currentWeapon().id).toUpperCase(), t("banner.weaponPickup.subtitle"), 1.3, "#86f7ff");
   audio.pickup(pickup.type);
   return true;
 }
@@ -4557,7 +4554,7 @@ function sortLeaderboard(entries) {
 
 function loadLeaderboard() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(LEADERBOARD_KEY) || "[]");
+    const parsed = JSON.parse(safeStorageGet(LEADERBOARD_KEY, "[]"));
     if (!Array.isArray(parsed)) return [];
     return sortLeaderboard(parsed
       .filter((entry) => entry && typeof entry === "object")
@@ -4589,7 +4586,7 @@ function saveLeaderboard(entries) {
   if (world.selectedLeaderboardIndex >= world.leaderboard.length) {
     world.selectedLeaderboardIndex = Math.max(0, world.leaderboard.length - 1);
   }
-  localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(world.leaderboard));
+  safeStorageSet(LEADERBOARD_KEY, JSON.stringify(world.leaderboard));
   renderLeaderboard();
 }
 
@@ -4748,7 +4745,7 @@ function showScoreEntry(entry) {
   if (entry?.cheatsUsed) {
     world.pendingLeaderboardEntry = null;
     scoreEntryPanel.classList.add("hidden");
-    playerNameInput.value = localStorage.getItem(LEADERBOARD_NAME_KEY) || "";
+    playerNameInput.value = safeStorageGet(LEADERBOARD_NAME_KEY, "");
     renderRunSummary(entry);
     saveScoreStatus.textContent = t("run.cheatsUsed");
     return;
@@ -4756,7 +4753,7 @@ function showScoreEntry(entry) {
 
   world.pendingLeaderboardEntry = entry;
   scoreEntryPanel.classList.remove("hidden");
-  playerNameInput.value = localStorage.getItem(LEADERBOARD_NAME_KEY) || "";
+  playerNameInput.value = safeStorageGet(LEADERBOARD_NAME_KEY, "");
   renderRunSummary(entry);
   saveScoreStatus.textContent = t("leaderboard.scoreStatus", entry);
 }
@@ -4777,7 +4774,7 @@ function saveLeaderboardEntry() {
     return;
   }
   const name = (playerNameInput.value || "").trim();
-  localStorage.setItem(LEADERBOARD_NAME_KEY, name);
+  safeStorageSet(LEADERBOARD_NAME_KEY, name);
   saveLeaderboard([
     ...world.leaderboard,
     { ...world.pendingLeaderboardEntry, name, timestamp: Date.now() },
@@ -4871,7 +4868,7 @@ function syncHud() {
   scoreValue.textContent = world.score;
   waveValue.textContent = world.wave || 1;
   comboValue.textContent = `x${world.combo.toFixed(1)}`;
-  weaponValue.textContent = currentWeapon().label;
+  weaponValue.textContent = weaponLabel(currentWeapon().id);
   const combatUtilityHudVisible = isActiveRunState(world.state)
     || (
       world.state === "paused"

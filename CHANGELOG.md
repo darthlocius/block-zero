@@ -8,6 +8,16 @@
 - Added a localized one-time detection banner for the first Sniper spawned in each run.
 - Added a distinct Sniper marker to the motion tracker.
 
+### Fixed
+
+- Weapon names now respect the active EN/RU localization in the HUD and weapon pickup banners.
+- `localStorage` writes now fail gracefully when browser storage is unavailable.
+
+### Maintenance
+
+- Added `.gitattributes` to normalize text line endings for future changes without renormalizing the current tree.
+- Added a small dependency-free storage helper module for safe persistence reads, writes, and removals.
+
 ### Enemy AI
 
 - Added dedicated wave-slot planning with early/mid/late spawn chances and a maximum of two active Snipers from wave 12 onward.
