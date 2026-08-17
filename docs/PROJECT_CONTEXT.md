@@ -42,6 +42,14 @@ http://localhost:8000
 
 Do not use direct `index.html` opening as the recommended launch path. After asset changes, use `Ctrl+F5`, `Ctrl+Shift+R`, or disable the browser cache while testing.
 
+Automated regression tests use the native Node.js `node:test` runner with no external test dependencies. Run the deterministic suite from the project root:
+
+```bash
+node --test tests/*.test.mjs
+```
+
+The current suite covers safe storage behavior, segment/rectangle collision geometry, and Sniper wave planning. Wave planners must preserve injectable random functions as a required testability seam; tests must never rely on `Math.random`. Pure gameplay helpers should remain importable without DOM/browser bootstrap where practical, and new systems should be designed around a testable pure core.
+
 ## 4. File map
 
 - `version.js` — single source for the public build version and label.
@@ -52,9 +60,12 @@ Do not use direct `index.html` opening as the recommended launch path. After ass
 - `enemy.js` — wave creation, spawning, enemy and boss behavior, Swarm packs, Sniper hitscan logic, Tech-Priest support logic, and wave completion.
 - `render.js` — canvas rendering for the map, actors, Sniper telegraphs/beams, effects, pickups, radar, crosshair, banners, and boss UI.
 - `bullet.js` — player/enemy projectiles, weapon fire, dash, hit processing, and projectile-driven synergy effects.
-- `collision.js` — actor/solid collision, non-mutating segment/solid intersection, destructible damage, projectile obstruction, and barrel explosion damage.
+- `collision.js` — actor/solid collision, destructible damage, projectile obstruction, and barrel explosion damage; it consumes and re-exports the pure segment/solid helper.
+- `geometry.js` — dependency-free segment/rectangle intersection geometry shared by production collision code and Node regression tests.
+- `wave-planning.js` — dependency-free Sniper wave-slot planning and its pure constants, shared by production enemy spawning and Node regression tests.
 - `i18n.js` — EN/RU strings, language persistence, translation helpers, and static DOM translation.
 - `storage.js` — dependency-free safe wrappers for browser persistence reads, writes, and removals.
+- `tests/` — deterministic native Node.js regression tests for storage safety, collision geometry, and Sniper wave planning.
 - `index.html` — DOM structure for the canvas, HUD, main menu, modals, pause screen, results, achievements, and Hall of Fame.
 - `style.css` — layout and presentation for DOM UI, overlays, responsive states, and fullscreen behavior.
 - `assets/` — images, music, and sound effects loaded directly by the game.

@@ -17,6 +17,7 @@
 
 - Added `.gitattributes` to normalize text line endings for future changes without renormalizing the current tree.
 - Added a small dependency-free storage helper module for safe persistence reads, writes, and removals.
+- Added native Node.js regression tests for storage safety, collision geometry, and Sniper wave planning.
 
 ### Enemy AI
 

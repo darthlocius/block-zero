@@ -15,13 +15,25 @@ node --check enemy.js
 node --check render.js
 node --check bullet.js
 node --check collision.js
+node --check geometry.js
 node --check main.js
 node --check i18n.js
 node --check storage.js
+node --check wave-planning.js
 node --check version.js
 ```
 
 Also verify that `index.html` contains no duplicate DOM ids and that directly referenced `assets/...` paths exist.
+
+### Automated regression tests
+
+Run the full dependency-free regression suite before creating a release or tag:
+
+```bash
+node --test tests/*.test.mjs
+```
+
+The command must finish with exit code 0 and report no failed, cancelled, skipped, or todo tests.
 
 ## 2. Local launch
 
@@ -309,6 +321,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 ## 14. Final release gate
 
 - [ ] All syntax checks pass.
+- [ ] `node --test tests/*.test.mjs` passes with no failed, cancelled, skipped, or todo tests.
 - [ ] Manual smoke test passes.
 - [ ] Clean-profile test passes.
 - [ ] Honest-run test passes.
