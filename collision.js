@@ -93,7 +93,7 @@ function damageSolid(solid, amount, x, y) {
   maybePickup(solid.x, solid.y, solid.type === "crate" || solid.type === "wall" || solid.type === "longcrate");
 }
 
-function projectileHitsSolids(shot, scale = 1) {
+function projectileHitsSolids(shot, scale = 1, options = {}) {
   for (const solid of world.destructibles) {
     if (solid.destroyed) continue;
     const hit = circleRect(shot, solid);
@@ -105,7 +105,9 @@ function projectileHitsSolids(shot, scale = 1) {
       shot.style === "rocket" ? 1.12 : shot.style === "cannon" ? 0.98 : shot.style === "plasmaOrb" ? 1.08 : shot.style === "shell" ? 1.02 : shot.style === "needle" ? 0.72 : 0.9,
       shot.style === "rocket" ? "rocket" : shot.style === "cannon" ? "cannon" : shot.style === "plasmaOrb" ? "plasmaOrb" : (shot.weaponId || shot.style || "bullet")
     );
-    damageSolid(solid, shot.damage * scale, hit.nx, hit.ny);
+    if (options.damageSolids !== false) {
+      damageSolid(solid, shot.damage * scale, hit.nx, hit.ny);
+    }
     return true;
   }
   return false;

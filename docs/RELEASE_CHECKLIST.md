@@ -7,6 +7,8 @@ Use this internal checklist before publishing a build. Record results separately
 Run from the project root:
 
 ```bash
+node --check turret.js
+node --check meta-progression.js
 node --check grenade.js
 node --check game.js
 node --check input.js
@@ -82,7 +84,7 @@ The full reset also deletes `blockZeroLanguage` and any other `localStorage` dat
 
 ## 5. Main menu
 
-- [ ] Only `v0.9.0-alpha` is visible as the build label; it is readable but unobtrusive.
+- [ ] Only `v0.10.0-alpha` is visible as the build label; it is readable but unobtrusive.
 - [ ] Build label does not behave like a button or intercept pointer input.
 - [ ] EN is the default on a fully clean origin.
 - [ ] EN/RU switching updates all visible menu and overlay text.
@@ -90,7 +92,7 @@ The full reset also deletes `blockZeroLanguage` and any other `localStorage` dat
 - [ ] Audio panel opens, closes, and applies master/music/effects levels.
 - [ ] Fullscreen buttons enter/exit true fullscreen and report the correct state.
 - [ ] Controls overlay opens and closes.
-- [ ] General/Tactical Protocol and Armory upgrade views open and switch tabs.
+- [ ] General/Tactical Protocol, Armory, and Field Engineering upgrade views open and switch tabs.
 - [ ] Synergy Guide opens and displays all five synergies.
 - [ ] Achievements opens and displays 16 cards with correctly aligned icons.
 - [ ] Hall of Fame opens, closes, and handles an empty list.
@@ -125,7 +127,7 @@ Start after the targeted reset:
 - [ ] `Main Menu` is centered in a second row, matches the secondary `Upgrades` style, and remains inside the panel in fullscreen and narrow layouts.
 - [ ] EN shows `Main Menu`; RU shows `Главное меню`.
 - [ ] `Main Menu` returns immediately through the normal results-to-menu path without starting a run, opening Upgrades, or saving a pending Hall of Fame result.
-- [ ] Returning this way hides the combat HUD and clears weapon slots, active run cheats, grenades/in-flight grenade state, pause state, and other run-only state.
+- [ ] Returning this way hides the combat HUD and clears weapon slots, Bastion-7 state, active run cheats, grenades/in-flight grenade state, pause state, and other run-only state.
 - [ ] A result saved explicitly with `Save` remains in Hall of Fame after returning to the main menu.
 - [ ] `Try Again`, `Upgrades`, and `Save` still perform their existing actions.
 
@@ -136,7 +138,7 @@ Start after the targeted reset:
 - [ ] A new run starts on the pistol with both stored slots empty.
 - [ ] Physical `Digit1` selects the pistol; `Digit2` and `Digit3` select occupied slots and do nothing for empty slots.
 - [ ] Slot switching works under EN and RU layouts, only during `playing`, and does not affect text inputs or Forbidden Protocol entry.
-- [ ] The bottom-left utility HUD is one horizontal row: grenade counter, slot 2, then slot 3.
+- [ ] The bottom-left utility HUD is one horizontal row: Bastion-7, grenade counter, slot 2, then slot 3.
 - [ ] Empty slots are visibly subdued, the active stored slot is highlighted, and pistol mode highlights neither stored slot.
 - [ ] SMG, shotgun, and plasma slots show distinct CSS pictograms and the codes `SMG`, `12G`, and `PLS`.
 - [ ] Grenade count, empty state, refill pulse, and empty pulse still behave as before.
@@ -229,7 +231,36 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] A subsequent new run starts again with three charges.
 - [ ] Three quick throws do not cause a noticeable FPS drop, long-lived smoke, retained particles, or console errors.
 
-## 11. Tech-Priest signal-wave rebalance
+## 11. Field Engineering — Bastion-7
+
+- [ ] Physical `KeyQ` hold shows a camera-correct world-space preview; release deploys only at a valid point, while an invalid release leaves cooldown ready.
+- [ ] Right Click and the first `Esc` cancel placement without deploying; pause/resume leaves no ghost preview.
+- [ ] Range, full-footprint world bounds, 70-unit player clearance, live solids, living enemy overlap, and maximum-one-active validation all behave correctly.
+- [ ] The real base remains stationary while the head rotates smoothly through right/down/left/up/diagonal targets without wobble; flash and bullet origin stay on the muzzle.
+- [ ] Deploy lasts 0.45 seconds before firing; the sentry remains active for 30 seconds, sustains full-auto fire beyond 90 shots, and then fades without explosion, damage, or wreck.
+- [ ] Cooldown remains inactive throughout deployment/active time, starts at the effective 30-to-24-second value only when the sentry deactivates, continues through simulation-time wave-clear/intermission phases, freezes in pause/perk selection, and plays ready feedback once.
+- [ ] Nearest-visible targeting, sustained 0.10-second base full-auto cadence, target-loss/reacquire behavior, 600-unit range, distance spread, and actual-hit 0.60 boss damage behave as documented.
+- [ ] Crates, long crates, concrete, barricades, walls, and barrels block turret bullets but lose no HP and trigger no barrel chain.
+- [ ] Player and enemies pass through the sentry; enemies, Sniper, Tech-Priest, bullets, and grenades ignore it as a target/solid, and no friendly fire occurs.
+- [ ] Turret kills retain ordinary kills/score/credits/combo/drop handling without adding a weapon id, `weaponsUsed` entry, weapon synergy, or persistence key.
+- [ ] The CSS-native HUD card sits left of the grenade, transitions Active → Cooldown → Ready with active/cooldown time and no ammunition counter, remains readable in narrow and true 1920×1080 fullscreen layouts, and never uses the gameplay PNG as an icon.
+- [ ] EN/RU controls, status accessibility labels, and `KeyQ` behavior have full parity; both turret PNG assets load with alpha and no black rectangle.
+- [ ] Recoil/shake, head pivot, muzzle placement, deployment, and deactivation visuals remain unchanged during sustained fire.
+- [ ] Sustained fire starts one decoded `bastion7-machinegun-loop.wav` source on the first real shot, uses runtime gain `0.432`, does not restart per shot, survives brief target switches without stutter, and stops cleanly without an audible seam/click when fire ends.
+- [ ] The louder loop remains clear over battle music for 20–30 seconds, does not clip or overload the mix, and still obeys SFX volume and mute.
+- [ ] Loop playback rate is `0.94` at Overdrive Motors 0, `1.0528` at level 3, and `1.128` at level 5, audibly following the 600-to-720 RPM gameplay cadence.
+- [ ] The Bastion firing loop follows the existing SFX volume/mute path and leaves no source after pause, wave end, natural shutdown, death, retry, abort, reset, or menu return; the former per-shot synthetic cue is absent.
+- [ ] Turret projectiles render as compact warm kinetic tracers aligned to their own velocity in every direction, with no green blob or beam-like trail; projectile physics, collisions, muzzle flash, and recoil/shake remain unchanged.
+- [ ] Wave end immediately deactivates the sentry and starts a fresh effective cooldown; retry, death, abort, results-to-menu, and a new run fully reset active/preview/cooldown state to ready.
+- [ ] The Field Engineering tab shows exactly Heavy Caliber, Overdrive Motors, and Rapid Redeployment with correct EN/RU names, descriptions, costs, level counters, purchase states, and MAX behavior.
+- [ ] Heavy Caliber produces 10 damage through wave 4, 11.5 at wave 7, 14 at wave 12, and 18 at wave 20 before meta/Armory; level 5 multiplies those values by 1.30.
+- [ ] Generic Armory damage stacks exactly once after wave and Heavy Caliber multipliers; actual boss hits then receive exactly ×0.60.
+- [ ] Overdrive Motors level 5 uses about `0.08333` seconds per shot / 720 RPM without changing recoil, shake, muzzle, pivot, flash, tracer styling, or projectile cleanup.
+- [ ] Rapid Redeployment levels 0/1/5 start cooldown at 30/28.8/24 seconds while active duration remains 30 seconds and the HUD begins from the real effective value.
+- [ ] A pre-Field-Engineering `block-zero-meta-v1` save loads all old credits, levels, and lifetime statistics unchanged with the three new levels at 0; purchase/save/reload persists each new level under the same key.
+- [ ] `node --test tests/*.test.mjs` passes the production-importing turret tests and all prior storage/collision/Sniper regressions.
+
+## 12. Tech-Priest signal-wave rebalance
 
 ### First impact and telegraph
 
@@ -267,7 +298,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Consecutive impacts are about 4.85–6.05 seconds apart, and multiple impacts cannot start in the same frame.
 - [ ] Tech-Priest HP, shield, armor, blaster stats, ally-buff coefficients, spawn chance, pity logic, spawn timing, rewards, and loot are unchanged.
 
-## 12. Sniper
+## 13. Sniper
 
 ### Spawn planning and reset
 
@@ -307,7 +338,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Aim-start, lock, and shot cues are distinct, obey SFX volume, are silent at zero SFX, and leave no looping node after death.
 - [ ] One and two-Sniper fights remain readable in windowed mode and true 1920×1080 fullscreen without new console errors or a noticeable FPS drop.
 
-## 13. Display modes
+## 14. Display modes
 
 - [ ] Non-fullscreen layout is usable at the normal viewport size.
 - [ ] True fullscreen resizes the real canvas and reveals more world area.
@@ -318,7 +349,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Crosshair and shots align with the pointer after resize and fullscreen transitions.
 - [ ] Main menu, overlays, and version label do not introduce horizontal scroll.
 
-## 14. Final release gate
+## 15. Final release gate
 
 - [ ] All syntax checks pass.
 - [ ] `node --test tests/*.test.mjs` passes with no failed, cancelled, skipped, or todo tests.
@@ -331,5 +362,5 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Windowed/fullscreen test passes.
 - [ ] Git diff has been reviewed and contains no unintended gameplay or asset changes.
 - [ ] A recoverable archive backup exists.
-- [ ] `v0.9.0-alpha` is visible in the main menu.
+- [ ] `v0.10.0-alpha` is visible in the main menu.
 - [ ] `CHANGELOG.md` matches the candidate build.

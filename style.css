@@ -806,6 +806,214 @@ body.has-main-menu .canvas-frame {
   transform-origin: left bottom;
 }
 
+.turret-hud {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 30px minmax(24px, 1fr);
+  grid-template-rows: 30px 5px;
+  align-items: center;
+  column-gap: 6px;
+  row-gap: 3px;
+  min-width: 102px;
+  padding: 7px 9px 6px;
+  overflow: hidden;
+  border: 1px solid rgba(156, 255, 47, 0.48);
+  border-radius: 12px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(7, 18, 11, 0.88),
+      rgba(3, 9, 6, 0.8)
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 18px rgba(116, 255, 77, 0.14),
+    0 8px 20px rgba(0, 0, 0, 0.3);
+  color: #9cff2f;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    filter 150ms ease,
+    opacity 150ms ease;
+}
+
+.turret-hud-key {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 28px;
+  border: 1px solid rgba(156, 255, 47, 0.52);
+  border-radius: 6px;
+  color: #dfffc4;
+  background: rgba(156, 255, 47, 0.08);
+  font-family: "Russo One", sans-serif;
+  font-size: 0.76rem;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.22);
+}
+
+.turret-hud-icon {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+  width: 30px;
+  height: 25px;
+  color: #9cff2f;
+  filter: drop-shadow(0 0 5px rgba(156, 255, 47, 0.44));
+}
+
+.turret-hud-head,
+.turret-hud-base {
+  position: absolute;
+  display: block;
+  box-sizing: border-box;
+}
+
+.turret-hud-head {
+  left: 5px;
+  top: 5px;
+  width: 14px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 5px 4px 3px 3px;
+  background: rgba(156, 255, 47, 0.12);
+}
+
+.turret-hud-head::before,
+.turret-hud-head::after,
+.turret-hud-base::before {
+  content: "";
+  position: absolute;
+}
+
+.turret-hud-head::before {
+  left: 3px;
+  top: 1px;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #eaffd7;
+  box-shadow: 0 0 5px rgba(156, 255, 47, 0.9);
+}
+
+.turret-hud-head::after {
+  left: 11px;
+  top: 1px;
+  width: 13px;
+  height: 3px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  border-radius: 0 2px 2px 0;
+}
+
+.turret-hud-base {
+  left: 4px;
+  bottom: 2px;
+  width: 22px;
+  height: 7px;
+  border: 2px solid currentColor;
+  border-radius: 5px 5px 3px 3px;
+  background: rgba(156, 255, 47, 0.1);
+}
+
+.turret-hud-base::before {
+  left: 3px;
+  right: 3px;
+  bottom: -4px;
+  height: 2px;
+  border-left: 3px solid currentColor;
+  border-right: 3px solid currentColor;
+}
+
+.turret-hud-value {
+  grid-column: 3;
+  grid-row: 1;
+  min-width: 24px;
+  color: #bfff80;
+  font-family: "Russo One", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  text-shadow:
+    0 0 8px rgba(156, 255, 47, 0.58),
+    0 0 16px rgba(116, 255, 77, 0.22);
+}
+
+.turret-hud-progress-track {
+  position: relative;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  align-self: end;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(156, 255, 47, 0.14);
+}
+
+.turret-hud-progress {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6fd92c, #d9ffb2);
+  box-shadow: 0 0 7px rgba(156, 255, 47, 0.72);
+  transition: width 80ms linear;
+}
+
+.turret-hud.is-placement {
+  animation: turretPlacementPulse 820ms ease-in-out infinite;
+}
+
+.turret-hud.is-active {
+  border-color: rgba(203, 255, 151, 0.72);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 0 19px rgba(116, 255, 77, 0.25),
+    0 8px 20px rgba(0, 0, 0, 0.34);
+}
+
+.turret-hud.is-cooldown {
+  border-color: rgba(156, 255, 47, 0.2);
+  opacity: 0.64;
+  filter: saturate(0.56);
+}
+
+.turret-hud.is-cooldown-ending {
+  animation: turretCooldownPulse 620ms ease-in-out infinite;
+}
+
+.turret-hud.is-ready-flash {
+  animation: turretReadyFlash 420ms ease-out;
+}
+
+@keyframes turretPlacementPulse {
+  0%,
+  100% {
+    filter: brightness(1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 16px rgba(116, 255, 77, 0.14), 0 8px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  50% {
+    filter: brightness(1.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 0 24px rgba(116, 255, 77, 0.34), 0 8px 20px rgba(0, 0, 0, 0.32);
+  }
+}
+
+@keyframes turretCooldownPulse {
+  0%,
+  100% { filter: saturate(0.62) brightness(0.92); }
+  50% { filter: saturate(0.82) brightness(1.12); }
+}
+
+@keyframes turretReadyFlash {
+  0% { filter: brightness(1.75); box-shadow: 0 0 30px rgba(156, 255, 47, 0.66); }
+  100% { filter: brightness(1); }
+}
+
 .weapon-slots-hud {
   display: flex;
   align-items: stretch;

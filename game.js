@@ -1,7 +1,24 @@
 ﻿// Shared game state, assets, UI helpers, and reusable systems.
 
 import { addLanguageChangeListener, getLanguage, t } from "./i18n.js";
+import {
+  META_PROGRESS_KEY,
+  canPurchaseMetaUpgrade,
+  createDefaultMetaState,
+  getMetaUpgradeCostForState,
+  metaUpgrades,
+  normalizeMetaState,
+  purchaseMetaUpgrade,
+} from "./meta-progression.js";
 import { safeStorageGet, safeStorageSet } from "./storage.js";
+import {
+  TURRET_AUDIO_CONFIG,
+  cancelTurretPlacement,
+  createTurretAbilityState,
+  resetTurretAbilityState,
+  stopActiveTurret,
+  turretHudState,
+} from "./turret.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -33,6 +50,9 @@ const waveValue = document.getElementById("waveValue");
 const comboValue = document.getElementById("comboValue");
 const weaponValue = document.getElementById("weaponValue");
 const combatUtilityHud = document.getElementById("combatUtilityHud");
+const turretHud = document.getElementById("turretHud");
+const turretValue = document.getElementById("turretValue");
+const turretProgress = document.getElementById("turretProgress");
 const grenadeHud = document.getElementById("grenadeHud");
 const grenadeValue = document.getElementById("grenadeValue");
 const weaponSlotsHud = document.getElementById("weaponSlotsHud");
@@ -124,7 +144,6 @@ const BASE_WORLD_HEIGHT = canvas.height;
 const WORLD_SCALE = 1.8;
 const LEADERBOARD_KEY = "block-zero-leaderboard-v1";
 const LEADERBOARD_NAME_KEY = "block-zero-player-name";
-const META_PROGRESS_KEY = "block-zero-meta-v1";
 const ACHIEVEMENTS_STORAGE_KEY = "block-zero-achievements-v1";
 
 const GRENADE_CONFIG = Object.freeze({
@@ -306,6 +325,8 @@ const assetManifest = {
     weapon_shotgun: "assets/images/pickups/shotgun.png",
     weapon_rail: "assets/images/pickups/coil_rifle.png",
     ally_drone: "assets/images/allies/drone.png",
+    ally_turret_base: "assets/images/allies/turret-base.png",
+    ally_turret_head: "assets/images/allies/turret-head.png",
     effect_hellhound_death: "assets/images/effects/hellhound_after_death.png",
     effect_orb_death: "assets/images/effects/orb_after_death.png",
     effect_tank_death: "assets/images/effects/tank_after_death.png",
@@ -343,6 +364,15 @@ const battleTrackKeys = [
   "battle_music_07",
   "battle_music_08",
 ];
+
+const BASTION7_FIRING_AUDIO = Object.freeze({
+  src: "assets/audio/bastion7-machinegun-loop.wav",
+  basePlaybackRate: TURRET_AUDIO_CONFIG.baseLoopPlaybackRate,
+  gain: 0.432,
+  fadeIn: 0.015,
+  fadeOut: 0.03,
+  holdDuration: 0.08,
+});
 
 const playerSpritesheetMeta = {
   frameWidth: 64,
@@ -448,166 +478,6 @@ function baseWaveBonusModifiers() {
   };
 }
 
-const metaUpgrades = {
-  max_health: {
-    id: "max_health",
-    title: "Укрепление организма",
-    description: "+10 к максимальному здоровью за уровень.",
-    maxLevel: 5,
-    baseCost: 24,
-    costScale: 18,
-  },
-  move_speed: {
-    id: "move_speed",
-    title: "Моторная реакция",
-    description: "+4% к скорости перемещения за уровень.",
-    maxLevel: 5,
-    baseCost: 22,
-    costScale: 16,
-  },
-  damage_resistance: {
-    id: "damage_resistance",
-    title: "Композитная броня",
-    description: "-4% входящего урона за уровень.",
-    maxLevel: 5,
-    baseCost: 26,
-    costScale: 18,
-  },
-  pickup_luck: {
-    id: "pickup_luck",
-    title: "Полевой трофейщик",
-    description: "+6% к шансу дропа за уровень.",
-    maxLevel: 5,
-    baseCost: 18,
-    costScale: 14,
-  },
-  weapon_mastery: {
-    id: "weapon_mastery",
-    title: "Оружейная подготовка",
-    description: "+5% к базовому урону оружия за уровень.",
-    maxLevel: 5,
-    baseCost: 28,
-    costScale: 20,
-  },
-  crit_protocol: {
-    id: "crit_protocol",
-    title: "Протокол добивания",
-    description: "+5% к урону по врагам с низким HP за уровень.",
-    maxLevel: 5,
-    baseCost: 24,
-    costScale: 18,
-  },
-  recovery: {
-    id: "recovery",
-    title: "Экстренная регенерация",
-    description: "Повышает эффективность лечения на 10% за уровень.",
-    maxLevel: 5,
-    baseCost: 18,
-    costScale: 14,
-  },
-  perk_bias: {
-    id: "perk_bias",
-    title: "Тактическая интуиция",
-    description: "Чуть чаще показывает редкие и эпические усиления между волнами.",
-    maxLevel: 5,
-    baseCost: 30,
-    costScale: 22,
-  },
-  reroll_protocol: {
-    id: "reroll_protocol",
-    title: "Reroll Protocol",
-    description: "Grants +1 augment reroll per level during each run.",
-    maxLevel: 3,
-    baseCost: 450,
-    costScale: 240,
-  },
-  expanded_selection: {
-    id: "expanded_selection",
-    title: "Expanded Selection",
-    description: "Adds a fourth augment option between waves.",
-    maxLevel: 1,
-    baseCost: 1900,
-    costScale: 0,
-  },
-  synergy_scanner: {
-    id: "synergy_scanner",
-    title: "Synergy Scanner",
-    description: "Shows which augment choices can lead toward synergies.",
-    maxLevel: 1,
-    baseCost: 1400,
-    costScale: 0,
-  },
-  armory_damage: {
-    id: "armory_damage",
-    category: "armory",
-    title: "Убойная калибровка",
-    description: "+4% к урону всего оружия за уровень.",
-    maxLevel: 5,
-    baseCost: 180,
-    costScale: 115,
-  },
-  armory_fire_rate: {
-    id: "armory_fire_rate",
-    category: "armory",
-    title: "Разогнанные затворы",
-    description: "Уменьшает задержку между выстрелами на 3% за уровень.",
-    maxLevel: 5,
-    baseCost: 220,
-    costScale: 140,
-  },
-  armory_projectile_speed: {
-    id: "armory_projectile_speed",
-    category: "armory",
-    title: "Ускоренный импульс",
-    description: "+4% к скорости снарядов за уровень.",
-    maxLevel: 5,
-    baseCost: 160,
-    costScale: 105,
-  },
-  armory_range: {
-    id: "armory_range",
-    category: "armory",
-    title: "Дальняя баллистика",
-    description: "+6% к дальности полёта снарядов за уровень.",
-    maxLevel: 5,
-    baseCost: 170,
-    costScale: 110,
-  },
-  armory_stability: {
-    id: "armory_stability",
-    category: "armory",
-    title: "Гиростабилизаторы ствола",
-    description: "-5% к разбросу оружия за уровень.",
-    maxLevel: 5,
-    baseCost: 180,
-    costScale: 120,
-  },
-  armory_pierce: {
-    id: "armory_pierce",
-    category: "armory",
-    title: "Пробойные сердечники",
-    description: "+1 к пробитию за уровень для пистолета, SMG и плазменной винтовки. Дробовик не получает пробитие.",
-    maxLevel: 2,
-    baseCost: 850,
-    costScale: 520,
-  },
-};
-
-function createDefaultMetaState() {
-  const levels = {};
-  for (const id of Object.keys(metaUpgrades)) levels[id] = 0;
-  return {
-    credits: 0,
-    totalEarnedCredits: 0,
-    unlockedMetaUpgrades: [],
-    metaUpgradeLevels: levels,
-    totalRuns: 0,
-    totalKills: 0,
-    bestWaveEver: 0,
-    bestScoreEver: 0,
-  };
-}
-
 const world = {
   width: Math.round(BASE_WORLD_WIDTH * WORLD_SCALE),
   height: Math.round(BASE_WORLD_HEIGHT * WORLD_SCALE),
@@ -626,6 +496,7 @@ const world = {
   camera: { x: 0, y: 0, width: canvas.width, height: canvas.height },
   pointerScreen: { x: canvas.width / 2, y: canvas.height / 2 },
   pointer: { x: canvas.width / 2, y: canvas.height / 2, down: false },
+  turretAbility: createTurretAbilityState(),
   bullets: [],
   grenades: [],
   grenadeCount: GRENADE_CONFIG.maxCharges,
@@ -735,7 +606,7 @@ const metaState = loadMetaProgress();
 let activeMetaUpgradeTab = "general";
 
 function setMetaUpgradeTab(tab) {
-  if (tab !== "general" && tab !== "armory") return;
+  if (!["general", "armory", "field_engineering"].includes(tab)) return;
   activeMetaUpgradeTab = tab;
   renderMetaUpgrades();
 }
@@ -2178,6 +2049,9 @@ function hideDeathSequenceOverlay() {
 
 function startWaveClearSequence() {
   closeWaveBonusSelection();
+  cancelTurretPlacement(world.turretAbility);
+  stopActiveTurret(world.turretAbility, "wave_end");
+  audio.stopBastion7Firing();
   world.enemyShots = [];
   world.bullets = [];
   world.intermissionTimer = 0;
@@ -2240,6 +2114,7 @@ function chooseWaveBonus(id) {
 function startDeathSequence() {
   finalizeRunMetaProgress();
   clearSniperRuntime();
+  resetTurretAbilityState(world.turretAbility);
   world.state = "death_sequence";
   world.grenades = [];
   world.deathSequenceTimer = 2.45;
@@ -2415,6 +2290,17 @@ function audioManager() {
     battlePlaylistIndex: 0,
     currentBattleTrack: null,
     lastBattleTrack: null,
+    bastion7LoopBytes: null,
+    bastion7LoopBuffer: null,
+    bastion7LoopFetchPromise: null,
+    bastion7LoopDecodePromise: null,
+    bastion7LoopSource: null,
+    bastion7LoopGain: null,
+    bastion7LoopStopping: false,
+    bastion7LoopFailed: false,
+    bastion7LoopPlaybackRate: BASTION7_FIRING_AUDIO.basePlaybackRate,
+    bastion7FiringRequested: false,
+    bastion7FiringHold: 0,
     volumes: { master: 0.7, music: 0.68, sfx: 0.82 },
     ensure() {
       if (this.ctx) return;
@@ -2451,6 +2337,147 @@ function audioManager() {
       if (!this.ctx) return;
       await this.ctx.resume();
       this.unlocked = this.ctx.state === "running";
+      if (!this.unlocked) return;
+      await this.decodeBastion7Loop();
+      if (this.bastion7FiringRequested) this.startBastion7Loop();
+    },
+    preloadBastion7Loop() {
+      if (this.bastion7LoopBytes || this.bastion7LoopBuffer) {
+        return Promise.resolve(this.bastion7LoopBytes);
+      }
+      if (this.bastion7LoopFetchPromise) return this.bastion7LoopFetchPromise;
+      if (this.bastion7LoopFailed) return Promise.resolve(null);
+
+      this.bastion7LoopFetchPromise = fetch(BASTION7_FIRING_AUDIO.src)
+        .then((response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.arrayBuffer();
+        })
+        .then((bytes) => {
+          if (!bytes.byteLength) throw new Error("empty response");
+          this.bastion7LoopBytes = bytes;
+          return bytes;
+        })
+        .catch((error) => {
+          this.bastion7LoopFailed = true;
+          console.warn("Bastion-7 firing loop could not be loaded.", error);
+          return null;
+        });
+      return this.bastion7LoopFetchPromise;
+    },
+    decodeBastion7Loop() {
+      if (this.bastion7LoopBuffer) return Promise.resolve(this.bastion7LoopBuffer);
+      if (this.bastion7LoopDecodePromise) return this.bastion7LoopDecodePromise;
+      if (this.bastion7LoopFailed) return Promise.resolve(null);
+      this.ensure();
+      if (!this.ctx) return Promise.resolve(null);
+
+      this.bastion7LoopDecodePromise = this.preloadBastion7Loop()
+        .then((bytes) => (bytes ? this.ctx.decodeAudioData(bytes.slice(0)) : null))
+        .then((buffer) => {
+          if (buffer) this.bastion7LoopBuffer = buffer;
+          return buffer;
+        })
+        .catch((error) => {
+          this.bastion7LoopFailed = true;
+          console.warn("Bastion-7 firing loop could not be decoded.", error);
+          return null;
+        });
+      return this.bastion7LoopDecodePromise;
+    },
+    startBastion7Loop() {
+      if (!this.bastion7FiringRequested || this.bastion7LoopSource || this.bastion7LoopStopping) {
+        return false;
+      }
+      if (!this.unlocked || !this.ctx || this.ctx.state !== "running") return false;
+      if (!this.bastion7LoopBuffer) {
+        this.decodeBastion7Loop().then((buffer) => {
+          if (buffer && this.bastion7FiringRequested) this.startBastion7Loop();
+        });
+        return false;
+      }
+
+      const now = this.ctx.currentTime;
+      const source = this.ctx.createBufferSource();
+      const gain = this.ctx.createGain();
+      source.buffer = this.bastion7LoopBuffer;
+      source.loop = true;
+      source.playbackRate.setValueAtTime(this.bastion7LoopPlaybackRate, now);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(
+        BASTION7_FIRING_AUDIO.gain,
+        now + BASTION7_FIRING_AUDIO.fadeIn,
+      );
+      source.connect(gain);
+      gain.connect(this.sfx);
+      source.onended = () => {
+        if (this.bastion7LoopSource !== source) return;
+        this.bastion7LoopSource = null;
+        this.bastion7LoopGain = null;
+        this.bastion7LoopStopping = false;
+        gain.disconnect();
+        if (this.bastion7FiringRequested) this.startBastion7Loop();
+      };
+      this.bastion7LoopSource = source;
+      this.bastion7LoopGain = gain;
+      this.bastion7LoopStopping = false;
+      source.start(now);
+      return true;
+    },
+    stopBastion7Loop() {
+      const source = this.bastion7LoopSource;
+      const gain = this.bastion7LoopGain;
+      if (!source || !gain || this.bastion7LoopStopping) return false;
+
+      const now = this.ctx.currentTime;
+      if (typeof gain.gain.cancelAndHoldAtTime === "function") {
+        gain.gain.cancelAndHoldAtTime(now);
+      } else {
+        const currentGain = Math.max(0.0001, gain.gain.value);
+        gain.gain.cancelScheduledValues(now);
+        gain.gain.setValueAtTime(currentGain, now);
+      }
+      gain.gain.exponentialRampToValueAtTime(
+        0.0001,
+        now + BASTION7_FIRING_AUDIO.fadeOut,
+      );
+      this.bastion7LoopStopping = true;
+      source.stop(now + BASTION7_FIRING_AUDIO.fadeOut + 0.005);
+      return true;
+    },
+    setBastion7Firing(
+      active,
+      immediate = false,
+      playbackRate = BASTION7_FIRING_AUDIO.basePlaybackRate,
+    ) {
+      const nextPlaybackRate = Number.isFinite(playbackRate) && playbackRate > 0
+        ? playbackRate
+        : BASTION7_FIRING_AUDIO.basePlaybackRate;
+      if (Math.abs(nextPlaybackRate - this.bastion7LoopPlaybackRate) > 1e-9) {
+        this.bastion7LoopPlaybackRate = nextPlaybackRate;
+        if (this.bastion7LoopSource && !this.bastion7LoopStopping && this.ctx) {
+          this.bastion7LoopSource.playbackRate.setValueAtTime(
+            nextPlaybackRate,
+            this.ctx.currentTime,
+          );
+        }
+      }
+      this.bastion7FiringRequested = Boolean(active);
+      if (this.bastion7FiringRequested) {
+        this.bastion7FiringHold = BASTION7_FIRING_AUDIO.holdDuration;
+        return this.startBastion7Loop();
+      }
+      if (immediate) {
+        this.bastion7FiringHold = 0;
+        return this.stopBastion7Loop();
+      }
+      if (this.bastion7FiringHold <= 0) return this.stopBastion7Loop();
+      return false;
+    },
+    stopBastion7Firing() {
+      this.bastion7FiringRequested = false;
+      this.bastion7FiringHold = 0;
+      return this.stopBastion7Loop();
     },
     shuffleBattlePlaylist() {
       const next = shuffle([...this.battleTracks]);
@@ -2493,6 +2520,7 @@ function audioManager() {
     },
     setMode(mode) {
       const menuTrack = "menu_music";
+      if (mode !== "battle") this.stopBastion7Firing();
       if (this.mode === mode) {
         if (mode === "menu" && this.isMusicNodePlaying(menuTrack)) return;
         if (mode === "battle" && this.currentBattleTrack && this.isMusicNodePlaying(this.currentBattleTrack)) return;
@@ -2617,6 +2645,15 @@ function audioManager() {
       })) return;
       this.tone(680, 0.08, "sawtooth", 0.018, { slideTo: 620, filter: { frequency: 1900 }, bus: "sfx" });
       this.burst(0.04, 0.012, { frequency: 2600, q: 1.2, bus: "sfx" });
+    },
+    turretDeploy() {
+      this.tone(132, 0.22, "sawtooth", 0.026, { slideTo: 310, filter: { frequency: 760 }, bus: "sfx" });
+      this.tone(520, 0.18, "triangle", 0.018, { slideTo: 780, filter: { type: "bandpass", frequency: 1500, q: 1.4 }, bus: "sfx" });
+      this.burst(0.07, 0.012, { frequency: 2100, q: 1.5, bus: "sfx" });
+    },
+    turretReady() {
+      this.tone(660, 0.1, "triangle", 0.018, { bus: "sfx" });
+      this.tone(990, 0.16, "triangle", 0.014, { bus: "sfx" });
     },
     dash() { this.tone(300, 0.16, "sawtooth", 0.03, { slideTo: 160, filter: { frequency: 900 }, bus: "sfx" }); },
     pickup(type) {
@@ -2782,6 +2819,10 @@ function audioManager() {
       if (bossWave) this.tone(196, 0.36, "sawtooth", 0.04, { slideTo: 110, filter: { frequency: 900 }, bus: "sfx" });
     },
     tick(dt) {
+      if (!this.bastion7FiringRequested && this.bastion7FiringHold > 0) {
+        this.bastion7FiringHold = Math.max(0, this.bastion7FiringHold - dt);
+        if (this.bastion7FiringHold <= 0) this.stopBastion7Loop();
+      }
       if (!this.unlocked || !this.ctx) return;
       if (this.mode === "battle") {
         if (this.currentBattleTrack && this.isMusicNodePlaying(this.currentBattleTrack)) return;
@@ -3931,28 +3972,6 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function normalizeMetaState(data = {}) {
-  const base = createDefaultMetaState();
-  const levels = { ...base.metaUpgradeLevels };
-  if (data.metaUpgradeLevels && typeof data.metaUpgradeLevels === "object") {
-    for (const id of Object.keys(levels)) {
-      const maxLevel = metaUpgrades[id].maxLevel;
-      levels[id] = clamp(Number(data.metaUpgradeLevels[id]) || 0, 0, maxLevel);
-    }
-  }
-  const unlocked = Object.keys(levels).filter((id) => levels[id] > 0);
-  return {
-    credits: Math.max(0, Math.floor(Number(data.credits) || 0)),
-    totalEarnedCredits: Math.max(0, Math.floor(Number(data.totalEarnedCredits) || 0)),
-    unlockedMetaUpgrades: unlocked,
-    metaUpgradeLevels: levels,
-    totalRuns: Math.max(0, Math.floor(Number(data.totalRuns) || 0)),
-    totalKills: Math.max(0, Math.floor(Number(data.totalKills) || 0)),
-    bestWaveEver: Math.max(0, Math.floor(Number(data.bestWaveEver) || 0)),
-    bestScoreEver: Math.max(0, Math.floor(Number(data.bestScoreEver) || 0)),
-  };
-}
-
 function loadMetaProgress() {
   try {
     const parsed = JSON.parse(safeStorageGet(META_PROGRESS_KEY, "{}"));
@@ -3972,19 +3991,11 @@ function getMetaUpgradeLevel(id) {
 }
 
 function getMetaUpgradeCost(id) {
-  const upgrade = metaUpgrades[id];
-  if (!upgrade) return Infinity;
-  const level = getMetaUpgradeLevel(id);
-  if (level >= upgrade.maxLevel) return Infinity;
-  return Math.round(upgrade.baseCost * (1 + level * 0.6) + level * upgrade.costScale);
+  return getMetaUpgradeCostForState(metaState, id);
 }
 
 function canBuyMetaUpgrade(id) {
-  const upgrade = metaUpgrades[id];
-  if (!upgrade) return false;
-  const level = getMetaUpgradeLevel(id);
-  if (level >= upgrade.maxLevel) return false;
-  return metaState.credits >= getMetaUpgradeCost(id);
+  return canPurchaseMetaUpgrade(metaState, id);
 }
 
 function renderMetaStats() {
@@ -4059,6 +4070,8 @@ function isPauseAllowed() {
 
 function openPauseMenu() {
   if (!isPauseAllowed()) return;
+  cancelTurretPlacement(world.turretAbility);
+  audio.stopBastion7Firing();
   world.stateBeforePause = world.state;
   world.pauseOpenedAt = performance.now();
   world.state = "paused";
@@ -4089,6 +4102,7 @@ function abortRunToSummary() {
 
   forceClosePauseMenu();
   clearSniperRuntime();
+  resetTurretAbilityState(world.turretAbility);
 
   finalizeRunMetaProgress();
 
@@ -4133,6 +4147,7 @@ function returnToMainMenuFromRun() {
 
   forceClosePauseMenu();
   clearSniperRuntime();
+  resetTurretAbilityState(world.turretAbility);
 
   world.pointer.down = false;
   world.enemyShots = [];
@@ -4157,6 +4172,7 @@ function returnToMainMenuFromResults() {
   if (world.state !== "gameover") return;
 
   clearSniperRuntime();
+  resetTurretAbilityState(world.turretAbility);
   hideScoreEntry();
   closeMetaOverlay();
   overlay.classList.remove("visible");
@@ -4189,6 +4205,7 @@ function syncMainMenuAudioState() {
 
 function showMainMenu() {
   clearSniperRuntime();
+  resetTurretAbilityState(world.turretAbility);
   clearActiveRunCheats();
   resetWeaponSlotState();
   world.state = "menu";
@@ -4233,12 +4250,8 @@ function exitToProjectPage() {
 }
 
 function buyMetaUpgrade(id) {
-  const upgrade = metaUpgrades[id];
-  if (!upgrade || !canBuyMetaUpgrade(id)) return false;
-  const cost = getMetaUpgradeCost(id);
-  metaState.credits -= cost;
-  metaState.metaUpgradeLevels[id] = getMetaUpgradeLevel(id) + 1;
-  metaState.unlockedMetaUpgrades = Object.keys(metaState.metaUpgradeLevels).filter((key) => metaState.metaUpgradeLevels[key] > 0);
+  const result = purchaseMetaUpgrade(metaState, id);
+  if (!result.purchased) return false;
   saveMetaProgress();
   renderMetaUpgrades();
   syncHud();
@@ -4876,6 +4889,37 @@ function syncHud() {
     );
   combatUtilityHud?.classList.toggle("hidden", !combatUtilityHudVisible);
   syncWeaponSlotsHud();
+  const turretState = turretHudState(world.turretAbility);
+  if (turretValue) turretValue.textContent = turretState.value;
+  if (turretProgress) turretProgress.style.width = `${turretState.progress * 100}%`;
+  if (turretHud) {
+    for (const mode of ["ready", "placement", "active", "cooldown"]) {
+      turretHud.classList.toggle(`is-${mode}`, turretState.mode === mode);
+    }
+    turretHud.classList.toggle(
+      "is-cooldown-ending",
+      turretState.mode === "cooldown" && world.turretAbility.cooldown <= 3,
+    );
+    turretHud.classList.toggle("is-ready-flash", world.turretAbility.readyFlash > 0);
+    if (turretState.mode === "active") {
+      turretHud.setAttribute(
+        "aria-label",
+        t("ui.turretActive", {
+          seconds: Math.ceil(world.turretAbility.active.remaining),
+        }),
+      );
+    } else if (turretState.mode === "cooldown") {
+      turretHud.setAttribute(
+        "aria-label",
+        t("ui.turretCooldown", { seconds: Math.ceil(world.turretAbility.cooldown) }),
+      );
+    } else {
+      turretHud.setAttribute(
+        "aria-label",
+        t(turretState.mode === "placement" ? "ui.turretPlacement" : "ui.turretReady"),
+      );
+    }
+  }
   if (grenadeValue) {
     grenadeValue.textContent = `×${world.grenadeCount}`;
   }
@@ -5119,6 +5163,8 @@ function menuOverlay() {
 function resetGame() {
   clearActiveRunCheats();
   clearSniperRuntime();
+  resetTurretAbilityState(world.turretAbility);
+  audio.stopBastion7Firing();
   world.bullets = [];
   world.grenades = [];
   world.grenadeCount = GRENADE_CONFIG.maxCharges;
@@ -5992,6 +6038,7 @@ export {
   getMetaUpgradeCost,
   canBuyMetaUpgrade,
   buyMetaUpgrade,
+  getMetaArmoryDamageMultiplier,
   getMetaExecutionBonusMultiplier,
   getMetaHealingMultiplier,
   currentWaveBonusData,

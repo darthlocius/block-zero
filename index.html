@@ -57,6 +57,14 @@
           <span data-i18n="controls.grenade">Impact grenade</span>
           <strong data-i18n="controls.grenadeKeys">G</strong>
         </div>
+        <div>
+          <span data-i18n="controls.turret">Bastion-7 Sentry</span>
+          <strong data-i18n="controls.turretKeys">Q</strong>
+        </div>
+        <div>
+          <span data-i18n="controls.turretCancelLabel">Cancel turret placement</span>
+          <strong data-i18n="controls.turretCancelKeys">Right Click / Esc</strong>
+        </div>
       </div>
 
       <div class="profile-strip">
@@ -162,6 +170,9 @@
             <div><span data-i18n="controls.weaponSlot3">Weapon slot 3</span><strong data-i18n="controls.weaponSlot3Keys">3</strong></div>
             <div><span data-i18n="controls.weaponPickup">Equip weapon</span><strong data-i18n="controls.weaponPickupKeys">Hold E</strong></div>
             <div><span data-i18n="controls.grenade">Impact grenade</span><strong data-i18n="controls.grenadeKeys">G</strong></div>
+            <div><span data-i18n="controls.turret">Bastion-7 Sentry</span><strong data-i18n="controls.turretKeys">Q</strong></div>
+            <div><span data-i18n="controls.turretPlacement">Hold Q to position, release to deploy.</span><strong data-i18n="controls.turretPlacementKeys">Hold / release Q</strong></div>
+            <div><span data-i18n="controls.turretCancelLabel">Cancel turret placement</span><strong data-i18n="controls.turretCancelKeys">Right Click / Esc</strong></div>
           </div>
         </div>
       </div>
@@ -211,6 +222,22 @@
         </div>
 
         <div id="combatUtilityHud" class="combat-utility-hud hidden">
+          <div
+            id="turretHud"
+            class="turret-hud is-ready"
+            aria-live="polite"
+          >
+            <span class="turret-hud-key" aria-hidden="true">Q</span>
+            <span class="turret-hud-icon" aria-hidden="true">
+              <span class="turret-hud-head"></span>
+              <span class="turret-hud-base"></span>
+            </span>
+            <strong id="turretValue" class="turret-hud-value"></strong>
+            <span class="turret-hud-progress-track" aria-hidden="true">
+              <span id="turretProgress" class="turret-hud-progress"></span>
+            </span>
+          </div>
+
           <div
             id="grenadeHud"
             class="grenade-hud"
@@ -376,6 +403,9 @@
             </button>
             <button class="meta-upgrade-tab" type="button" data-meta-tab="armory" data-i18n="meta.tab.armory" aria-selected="false">
               Armory
+            </button>
+            <button class="meta-upgrade-tab" type="button" data-meta-tab="field_engineering" data-i18n="meta.tab.fieldEngineering" aria-selected="false">
+              Field Engineering
             </button>
           </div>
 

@@ -23,6 +23,7 @@
 } from "./game.js";
 import { SNIPER_ATTACK, TECHPRIEST_SIGNAL_WAVE } from "./enemy.js";
 import { t } from "./i18n.js";
+import { TURRET_CONFIG } from "./turret.js";
 
 // Canvas rendering for the world, actors, effects, and HUD.
 
@@ -514,6 +515,227 @@ function drawGrenades() {
   }
 }
 
+function drawTurretPlacementGuides() {
+  const placement = world.turretAbility?.placement;
+  if (!placement?.active || !placement.point) return;
+
+  const color = placement.valid ? "116, 255, 77" : "255, 82, 64";
+
+  ctx.save();
+  ctx.setLineDash([8, 12]);
+  ctx.lineWidth = 1.25;
+  ctx.strokeStyle = "rgba(116, 255, 77, 0.2)";
+  ctx.beginPath();
+  ctx.arc(player.x, player.y, TURRET_CONFIG.placementRange, 0, TAU);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const glow = ctx.createRadialGradient(
+    placement.point.x,
+    placement.point.y,
+    TURRET_CONFIG.footprintRadius * 0.25,
+    placement.point.x,
+    placement.point.y,
+    TURRET_CONFIG.footprintRadius * 1.7,
+  );
+  glow.addColorStop(0, `rgba(${color}, 0.18)`);
+  glow.addColorStop(1, `rgba(${color}, 0)`);
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(
+    placement.point.x,
+    placement.point.y,
+    TURRET_CONFIG.footprintRadius * 1.7,
+    0,
+    TAU,
+  );
+  ctx.fill();
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = `rgba(${color}, 0.82)`;
+  ctx.beginPath();
+  ctx.arc(
+    placement.point.x,
+    placement.point.y,
+    TURRET_CONFIG.footprintRadius,
+    0,
+    TAU,
+  );
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawTurretSprite(turret, options = {}) {
+  const visual = TURRET_CONFIG.visual;
+  const alpha = options.alpha ?? 1;
+  const scale = options.scale ?? 1;
+  const size = visual.renderSize * scale;
+  const baseImage = assets.getImage("ally_turret_base");
+  const headImage = assets.getImage("ally_turret_head");
+  const recoil = (turret.recoil || 0) * 2.4;
+
+  ctx.save();
+  ctx.translate(turret.x, turret.y);
+  ctx.globalAlpha = alpha;
+  if (options.ghost) {
+    ctx.filter = options.valid
+      ? "brightness(1.12) saturate(1.15)"
+      : "grayscale(0.48) sepia(0.9) hue-rotate(305deg) saturate(2.8) brightness(0.72)";
+  }
+
+  ctx.save();
+  ctx.globalAlpha *= options.ghost ? 0.42 : 0.34;
+  ctx.fillStyle = options.valid === false ? "#2b0807" : "#030704";
+  ctx.beginPath();
+  ctx.ellipse(0, 7 * scale, size * 0.43, size * 0.27, 0, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+
+  if (baseImage) {
+    ctx.drawImage(baseImage, -size / 2, -size / 2, size, size);
+  } else {
+    ctx.fillStyle = "#222a24";
+    ctx.strokeStyle = TURRET_CONFIG.accent;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.38, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.save();
+  ctx.rotate(turret.angle || 0);
+  ctx.translate(-recoil, 0);
+  if (headImage) {
+    ctx.drawImage(
+      headImage,
+      -visual.headPivotX * size,
+      -visual.headPivotY * size,
+      size,
+      size,
+    );
+  } else {
+    ctx.fillStyle = "#343d36";
+    ctx.strokeStyle = TURRET_CONFIG.accent;
+    ctx.lineWidth = 2;
+    ctx.fillRect(-size * 0.2, -size * 0.12, size * 0.38, size * 0.24);
+    ctx.strokeRect(-size * 0.2, -size * 0.12, size * 0.38, size * 0.24);
+    ctx.fillRect(size * 0.14, -size * 0.04, size * 0.44, size * 0.08);
+  }
+
+  if (!options.ghost && turret.muzzleFlash > 0) {
+    const flashRatio = clamp(turret.muzzleFlash / 0.065, 0, 1);
+    const muzzleX = visual.muzzleOffsetX * size;
+    const muzzleY = visual.muzzleOffsetY * size;
+    ctx.save();
+    ctx.translate(muzzleX, muzzleY);
+    ctx.globalCompositeOperation = "screen";
+    ctx.globalAlpha = flashRatio;
+    const flash = ctx.createRadialGradient(0, 0, 0, 0, 0, 17 * scale);
+    flash.addColorStop(0, "rgba(255, 255, 226, 0.98)");
+    flash.addColorStop(0.28, "rgba(255, 220, 128, 0.82)");
+    flash.addColorStop(0.64, "rgba(156, 255, 47, 0.2)");
+    flash.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = flash;
+    ctx.beginPath();
+    ctx.arc(0, 0, 17 * scale, 0, TAU);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255, 250, 210, 0.94)";
+    ctx.beginPath();
+    ctx.moveTo(-2, 0);
+    ctx.lineTo(16 * scale, -5 * scale);
+    ctx.lineTo(10 * scale, 0);
+    ctx.lineTo(16 * scale, 5 * scale);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawBastion7() {
+  const ability = world.turretAbility;
+  if (!ability) return;
+
+  if (ability.deactivation) {
+    const fading = ability.deactivation;
+    const fade = clamp(fading.fadeRemaining / fading.fadeDuration, 0, 1);
+    drawTurretSprite(fading, {
+      alpha: fade * 0.78,
+      scale: 0.94 + fade * 0.06,
+    });
+    ctx.save();
+    ctx.strokeStyle = `rgba(156, 255, 47, ${fade * 0.7})`;
+    ctx.lineWidth = 1.4;
+    for (let i = 0; i < 4; i += 1) {
+      const angle = fading.visualTime * 9 + i * TAU / 4;
+      const inner = 22 + i * 2;
+      const outer = inner + 8 * fade;
+      ctx.beginPath();
+      ctx.moveTo(
+        fading.x + Math.cos(angle) * inner,
+        fading.y + Math.sin(angle) * inner,
+      );
+      ctx.lineTo(
+        fading.x + Math.cos(angle) * outer,
+        fading.y + Math.sin(angle) * outer,
+      );
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  if (ability.active) {
+    const turret = ability.active;
+    const deployProgress = clamp(
+      turret.deployElapsed / TURRET_CONFIG.deployDuration,
+      0,
+      1,
+    );
+    const eased = 1 - (1 - deployProgress) ** 3;
+    drawTurretSprite(turret, {
+      alpha: 0.55 + eased * 0.45,
+      scale: 0.72 + eased * 0.28,
+    });
+
+    if (deployProgress < 1) {
+      ctx.save();
+      ctx.strokeStyle = `rgba(156, 255, 47, ${(1 - deployProgress) * 0.72})`;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(
+        turret.x,
+        turret.y,
+        TURRET_CONFIG.footprintRadius + deployProgress * 30,
+        0,
+        TAU,
+      );
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
+  const placement = ability.placement;
+  if (placement?.active && placement.point) {
+    drawTurretSprite(
+      {
+        x: placement.point.x,
+        y: placement.point.y,
+        angle: 0,
+        recoil: 0,
+        muzzleFlash: 0,
+      },
+      {
+        alpha: TURRET_CONFIG.visual.ghostAlpha,
+        scale: 1,
+        ghost: true,
+        valid: placement.valid,
+      },
+    );
+  }
+}
+
 function drawDeathEffects() {
   for (const effect of world.deathEffects) {
     const life = effect.life / effect.maxLife;
@@ -751,7 +973,31 @@ function drawShot(shot) {
   ctx.translate(shot.x, shot.y);
   ctx.rotate(angle);
   ctx.globalCompositeOperation = "screen";
-  if (shot.style === "bullet") {
+  if (shot.source === "turret") {
+    ctx.lineCap = "round";
+    ctx.strokeStyle = `rgba(255, 139, 35, ${0.2 + life * 0.24})`;
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.moveTo(-14, 0);
+    ctx.lineTo(4, 0);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255, 190, 66, ${0.48 + life * 0.3})`;
+    ctx.lineWidth = 1.9;
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(6, 0);
+    ctx.stroke();
+    ctx.strokeStyle = `rgba(255, 249, 207, ${0.72 + life * 0.24})`;
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(-6, 0);
+    ctx.lineTo(7, 0);
+    ctx.stroke();
+    ctx.fillStyle = "#fff1b8";
+    ctx.beginPath();
+    ctx.ellipse(7, 0, 2.6, 1.45, 0, 0, TAU);
+    ctx.fill();
+  } else if (shot.style === "bullet") {
     ctx.strokeStyle = `rgba(255, 183, 92, ${0.24 + life * 0.34})`;
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -2247,6 +2493,7 @@ function render() {
   ctx.translate(-world.camera.x, -world.camera.y);
   drawTerrain();
   drawGroundEffects();
+  drawTurretPlacementGuides();
   drawGrenadeLandingMarkers();
   drawTechpriestSignalTelegraphs();
   drawDeathEffects();
@@ -2254,6 +2501,7 @@ function render() {
   drawPickups();
   drawWeaponPickupPrompt();
   drawParticles();
+  drawBastion7();
   drawFoes();
   drawSniperAttackEffects();
   drawGrenades();

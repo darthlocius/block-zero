@@ -9,7 +9,7 @@ This is the author's first serious game project. A future Steam release is a pos
 ## 2. Current build
 
 ```text
-Current version: 0.9.0-alpha
+Current version: 0.10.0-alpha
 Development status: Alpha
 ```
 
@@ -48,14 +48,16 @@ Automated regression tests use the native Node.js `node:test` runner with no ext
 node --test tests/*.test.mjs
 ```
 
-The current suite covers safe storage behavior, segment/rectangle collision geometry, and Sniper wave planning. Wave planners must preserve injectable random functions as a required testability seam; tests must never rely on `Math.random`. Pure gameplay helpers should remain importable without DOM/browser bootstrap where practical, and new systems should be designed around a testable pure core.
+The current suite covers safe storage behavior, segment/rectangle collision geometry, Sniper wave planning, and the Bastion-7 pure core. Wave planners and automated combat helpers must preserve injectable random functions and visibility predicates as required testability seams; tests must never depend on uncontrolled `Math.random`. Pure gameplay helpers should remain importable without DOM/browser bootstrap where practical.
 
 ## 4. File map
 
 - `version.js` — single source for the public build version and label.
 - `main.js` — bootstrap, animation loop, and high-level update ordering.
 - `game.js` — shared DOM references, game and run state, content definitions, assets/audio, bonuses, synergies, achievements, meta progression, Hall of Fame, menus, run lifecycle, and common helpers.
+- `meta-progression.js` — dependency-free permanent upgrade registry, cost/purchase rules, and backward-compatible meta-save normalization.
 - `input.js` — keyboard and pointer input, fullscreen control, menu wiring, audio controls, and internal Forbidden Protocol entry handling.
+- `turret.js` — dependency-free Bastion-7 configuration, ability runtime, placement validation, cooldown/lifetime updates, spread, targeting, rotation, and full-auto logic.
 - `player.js` — player movement, firing trigger, ordinary pickup collection, and hold-to-equip weapon handling.
 - `enemy.js` — wave creation, spawning, enemy and boss behavior, Swarm packs, Sniper hitscan logic, Tech-Priest support logic, and wave completion.
 - `render.js` — canvas rendering for the map, actors, Sniper telegraphs/beams, effects, pickups, radar, crosshair, banners, and boss UI.
@@ -65,7 +67,7 @@ The current suite covers safe storage behavior, segment/rectangle collision geom
 - `wave-planning.js` — dependency-free Sniper wave-slot planning and its pure constants, shared by production enemy spawning and Node regression tests.
 - `i18n.js` — EN/RU strings, language persistence, translation helpers, and static DOM translation.
 - `storage.js` — dependency-free safe wrappers for browser persistence reads, writes, and removals.
-- `tests/` — deterministic native Node.js regression tests for storage safety, collision geometry, and Sniper wave planning.
+- `tests/` — deterministic native Node.js regression tests for storage safety, collision geometry, Sniper wave planning, and Bastion-7 core behavior.
 - `index.html` — DOM structure for the canvas, HUD, main menu, modals, pause screen, results, achievements, and Hall of Fame.
 - `style.css` — layout and presentation for DOM UI, overlays, responsive states, and fullscreen behavior.
 - `assets/` — images, music, and sound effects loaded directly by the game.
@@ -127,6 +129,8 @@ Gameplay controls use physical `event.code` mappings where layout independence m
 - `3` (`Digit3`) — switch to stored weapon slot 3 when occupied.
 - Hold `E` (`KeyE`) near a weapon pickup — equip it. The current hold duration is 0.35 seconds and the interaction radius is 56 world units.
 - `G` (`KeyG`) — throw a targeted impact grenade toward the world-space cursor.
+- `Q` (`KeyQ`) — hold to preview Bastion-7 placement at the world-space cursor and release to deploy; keyboard layout does not affect the physical key.
+- Right Click or `Esc` while the placement preview is active — cancel placement without deploying or starting cooldown. Placement cancellation consumes the first `Esc` instead of also opening pause.
 - `Esc` — pause/resume an active run, close the topmost menu overlay, return from results, or confirm the finished death sequence where applicable.
 - Fullscreen — UI buttons only.
 
@@ -146,7 +150,50 @@ The pointer is converted from CSS pixels into real canvas coordinates, then into
 - Grenade inventory and in-flight state are run-local and are not written to `localStorage`.
 - There are no grenade meta-upgrades and no random grenade pickups in this build.
 
-## 9. Current stable systems
+## 9. Field Engineering — Bastion-7
+
+Bastion-7 Sentry / `Турель «Бастион-7»` is the Field Engineering active ability. Its internal id is `bastion7`. The existing permanent meta screen includes a three-upgrade Field Engineering branch for this ability. This version still includes only the machine-gun sentry: there is no grenade turret, second device, repair, pickup, charge inventory, new currency, dedicated persistence key, or Field Engineering achievement.
+
+### Architecture and ownership
+
+- `turret.js` is dependency-free and owns the frozen config, Field Engineering formulas, run-state factory/reset, pure placement validation, cooldown/lifetime updates, wave/damage/boss scaling, distance spread, nearest-visible targeting, turn interpolation, full-auto cadence, audio-rate math, and shot descriptors.
+- `meta-progression.js` owns the existing registry and generic state/cost/purchase helpers. The Field Engineering ids are `field_heavy_caliber`, `field_overdrive_motors`, and `field_rapid_redeployment`; all use the existing credit balance and `block-zero-meta-v1` save.
+- `game.js` owns DOM references and stores one `world.turretAbility` run-state object. Existing lifecycle functions reset or stop it on wave clear, death, abort, retry, results/menu return, and new-run reset.
+- `main.js` injects the existing `firstSolidIntersection(...)` LOS path, `projectile(...)` creation, firing-loop state updates, current wave, Field Engineering levels, world collections, and `getMetaArmoryDamageMultiplier()` into the turret core. `turret.js` never imports `game.js`, `bullet.js`, or browser APIs, so this dependency direction creates no import cycle.
+- `bullet.js` records `source: "turret"`. Turret projectiles use the ordinary friendly projectile array and enemy hit/death path, but skip weapon execution bonuses, weapon knockback, weapon synergies, and weapon ids. They stop on live solids through the existing collision helper while explicitly suppressing `damageSolid(...)`.
+- `render.js` consumes frozen rendering metadata and the two manifest assets. The persistent HUD pictogram is CSS-native and does not use either gameplay PNG.
+
+### Runtime and placement
+
+- Every run starts ready with cooldown 0, no active sentry, no placement preview, and no ready sound.
+- Hold physical `KeyQ` during `playing` to show the real base/head sprites at the camera-correct world cursor. Release `Q` to attempt deployment. Right Click or `Esc` cancels; a cancelled or invalid attempt leaves cooldown at 0.
+- Placement range is 480 world units. The full 42-unit footprint must remain inside world bounds, stay at least 70 units from the player, avoid all live solid rectangles, avoid physical overlap with living enemies, and require that no Bastion-7 is already active.
+- The sentry is never added to destructible solids or actor collision. It provides no cover and does not block players, enemies, bullets, grenades, Hunter Drones, Sniper beams, or Tech-Priest attacks.
+- Successful deployment starts a 30-second active timer with unlimited ammunition and leaves cooldown inactive at 0. Natural expiry begins deactivation and the effective post-deactivation cooldown at the same simulation instant. The base cooldown is 30 seconds; Rapid Redeployment reduces it by 4% per level to 24 seconds at level 5 without changing active duration. Cooldown advances on simulation `dt` during `playing`, `intermission`, and the short `wave_clear` sequence; it freezes during pause, perk selection, death sequence, gameover, and menus.
+- Wave completion immediately removes an active sentry, discards any unused active time, starts the existing deactivation visual, and sets the same effective post-deactivation cooldown. Death, abort, retry/new run, and menu return reset the complete run-only ability state to ready with cooldown 0.
+
+### Combat
+
+- After a 0.45-second deploy phase, Bastion-7 selects the nearest living visible enemy within 600 units. Visibility is evaluated with existing live-solid segment intersection; there are no special enemy priorities.
+- While a valid target remains aligned, Bastion-7 fires continuously at a base 0.10-second interval with no burst counter or burst pause. Overdrive Motors adds 4% fire rate per level through `effectiveShotInterval = 0.10 / (1 + 0.04 × level)`, reaching about 0.08333 seconds and 720 RPM at level 5. A dead, out-of-range, or newly occluded target stops fire; the sentry reacquires the nearest visible target and resumes after ordinary aim alignment without an artificial delay.
+- The head turns at 8 radians/second and fires when it is within 0.14 radians of the current target direction. It holds its last angle without a target.
+- Visible projectiles travel at 900 units/second and deal base damage 10. Wave scaling is `1 + 0.05 × max(0, wave - 4)`; Heavy Caliber adds `1 + 0.06 × level`; the existing `getMetaArmoryDamageMultiplier()` remains the only generic Armory factor. Normal damage is `base × wave × Heavy Caliber × Armory`. Spread is ±7° through 250 units and interpolates to ±11° at 600 units. There is no predictive lead.
+- Actual boss hits apply the explicit 0.60 multiplier after normal calculated turret damage. Ordinary enemy death still reaches `awardKill(...)`, preserving kills, score, credits, combo, and ordinary pickup behavior without adding `turret` to `weaponsUsed` or assigning a weapon id.
+- Turret bullets disappear on crates, long crates, concrete, barricades, barrels, and other live solids. They never reduce solid HP or trigger barrel chains. There is no friendly fire and the sentry has no HP, health bar, enemy aggro, or enemy target-selection role.
+
+### Rendering, HUD, audio, and assets
+
+- `assets/images/allies/turret-base.png` is stationary. `assets/images/allies/turret-head.png` rotates freely with asset angle 0 aligned to world +X.
+- Both 1254×1254 sprites render at a 92-unit square. The head pivot is explicit at normalized `(430/1254, 644/1254)` and the muzzle offset is `(738/1254, 0)` of render size from that pivot. Projectile origin and the short warm muzzle flash use the rotated muzzle offset.
+- Deployment eases from scale 0.72/alpha 0.55 to full size/alpha over 0.45 seconds with a restrained acid-green activation ring. Expiry uses a 0.28-second fade/spark deactivation without explosion, AoE, or wreck.
+- The preview uses both real sprites at alpha 0.48, a subtle 480-unit player radius, and green/red footprint feedback. Range circles are not retained after deployment.
+- The DOM HUD card sits immediately left of the grenade card, followed by weapon slots 2 and 3. Its CSS-only line pictogram, `Q` keycap, border, glow, typography, progress bar, ready/placement/active/cooldown states, final-three-second pulse, and ready flash reuse the established acid-green utility-card language. Active shows whole remaining seconds and lifetime progress; cooldown shows `ceil(cooldown)` after shutdown.
+- `assets/audio/bastion7-machinegun-loop.wav` is fetched once, decoded once into an `AudioBuffer`, and played through the existing SFX gain bus only while actual sustained firing is active. Runtime gain is `0.432` (1.8× the previous `0.24`). Baseline playback rate remains `0.94` and follows Overdrive Motors through `0.94 × fireRateMultiplier`, reaching `1.128` at level 5. The existing 15 ms fade-in, 30 ms fade-out, 80 ms target-switch hold, lifecycle cleanup, SFX volume, and mute paths are unchanged.
+- `render.js` selects Bastion projectiles only through `source: "turret"` and draws a compact velocity-aligned warm white/yellow/gold tracer with an orange outer glow. `bullet.js` uses matching small warm impact sparks; projectile position, radius, speed, lifetime, collision, damage, and attribution are unchanged.
+- Run-only Bastion-7 state is never written to `localStorage`. Permanent Field Engineering levels use the unchanged `block-zero-meta-v1` object; old saves without the three ids normalize them to level 0 while preserving credits, existing levels, and lifetime statistics.
+- Bastion-7 recoil/shake, sprite pivot, muzzle offset, muzzle flash, sprite render size, bullet origin, deploy/deactivation visuals, and established turret/HUD rendering are intentionally frozen unless a future task explicitly requests them.
+
+## 10. Current stable systems
 
 The current build includes:
 
@@ -171,7 +218,7 @@ The current build includes:
 - long-range Snipers with cover-blocked telegraphed hitscan attacks;
 - eight rotating battle music tracks.
 
-## 10. Weapons
+## 11. Weapons
 
 There are four active weapon definitions:
 
@@ -186,7 +233,7 @@ Weapon pickups still require holding `E`. A new weapon fills the first empty slo
 
 The internal `ARMORY` protocol continues to create nearby pickups for the three non-default weapons; it does not bypass slot rules.
 
-## 11. Enemies
+## 12. Enemies
 
 - **Hellhound** (`animal`) — fast melee pursuer that closes on the player and attacks at contact range.
 - **Orb** (`monster`) — slower ranged enemy that tries to keep distance and fires explosive projectiles.
@@ -311,7 +358,7 @@ Beam color: #ff2400
 
 Tech-Priest empowerment treats the Sniper as an ordinary ranged target. Existing coefficients may increase HP and damage and shorten its recovery cooldown, but the 1.35-second warning and 0.32-second fixed lock are constants and are never shortened. The Sniper's first-spawn banner and beam state are run-local, cleared on a new run, death/results, abort, and return to the main menu, and introduce no new `localStorage` key.
 
-## 12. Bosses
+## 13. Bosses
 
 Boss waves occur every fourth wave. The following three templates rotate cyclically:
 
@@ -321,7 +368,7 @@ Boss waves occur every fourth wave. The following three templates rotate cyclica
 
 Boss waves display a warning, an HP bar, and a defeated banner. They do not allow a Tech-Priest. Current bosses have distinct attacks and summoning behavior, but their behavior depth is still intended to expand in a later Enemy Evolution stage.
 
-## 13. Wave progression
+## 14. Wave progression
 
 - Runs start with an intermission, then advance through numbered survival waves.
 - Enemy totals, spawn cadence, HP, damage, and some movement scale with wave number.
@@ -333,7 +380,7 @@ Boss waves display a warning, an HP bar, and a defeated banner. They do not allo
 - Clearing a wave starts a short clear sequence followed by augment selection and the next intermission.
 - There is no final victory and no fully role-based Wave Director yet.
 
-## 14. Wave bonuses
+## 15. Wave bonuses
 
 The current `waveBonuses` registry contains **33** `createWaveBonus(...)` entries. Bonuses have rarity, weighting, tags, localized title/description data, and availability conditions where relevant. The system supports:
 
@@ -346,7 +393,7 @@ The current `waveBonuses` registry contains **33** `createWaveBonus(...)` entrie
 
 Do not duplicate all bonus definitions in documentation; `game.js` remains the source of truth for their exact effects.
 
-## 15. Synergies
+## 16. Synergies
 
 There are five current synergies:
 
@@ -364,13 +411,13 @@ Target frequency for build feel:
 - two are realistic;
 - three are possible in a lucky, coherent build.
 
-## 16. Meta progression
+## 17. Meta progression
 
-There are **17** permanent `metaUpgrades`: 11 in the General/Tactical Protocols group and 6 in Armory. They cover core stats, pickup and perk behavior, reroll/selection/scanner utilities, and weapon-wide Armory modifiers.
+There are **20** permanent `metaUpgrades`: 11 in the General/Tactical Protocols group, 6 in Armory, and 3 in Field Engineering. Heavy Caliber adds 6% Bastion damage per level, Overdrive Motors adds 4% Bastion fire rate per level, and Rapid Redeployment reduces Bastion cooldown by 4% per level; each is capped at level 5.
 
-Meta progression uses credits, upgrade levels/costs, lifetime run statistics, and `block-zero-meta-v1` persistence. Never reset credits, levels, or saved statistics without an explicit request. Preserve all existing costs and effects unless a dedicated balance task says otherwise.
+Meta progression uses credits, upgrade levels/costs, lifetime run statistics, and `block-zero-meta-v1` persistence. The Field Engineering entries reuse existing cost curves: Armory Damage for Heavy Caliber, Armory Fire Rate for Overdrive Motors, and Armory Range for Rapid Redeployment. Missing new ids default to 0 during normalization and appear on the next save without resetting old data. Never reset credits, levels, or saved statistics without an explicit request. Preserve all existing costs and effects unless a dedicated balance task says otherwise.
 
-## 17. Achievements
+## 18. Achievements
 
 The game has **16** achievements. They are stored separately under `block-zero-achievements-v1` and use:
 
@@ -384,7 +431,7 @@ Achievements give no gameplay rewards. Once a run becomes cheated, the pre-run a
 
 Weapon-streak achievements react only when the active weapon actually changes. Merely storing an id in a slot, reselecting the current slot, or interacting with an already-active duplicate does not create a weapon-switch event.
 
-## 18. Hall of Fame and run summary
+## 19. Hall of Fame and run summary
 
 New run results carry:
 
@@ -400,7 +447,7 @@ Saved Hall of Fame entries also contain player name and timestamp. Loading norma
 
 The run-results screen provides three actions: `Try Again`, `Upgrades`, and `Main Menu`. `Main Menu` uses the centralized results-to-menu path, clears the pending unsaved result and run-only state, and does not create a Hall of Fame entry automatically.
 
-## 19. Forbidden Protocols — INTERNAL ONLY
+## 20. Forbidden Protocols — INTERNAL ONLY
 
 This section is for the developer and Codex. Do not copy these codes into public documentation.
 
@@ -431,7 +478,7 @@ NUKE
 - Active run cheats are cleared after death results, abort, or return to the main menu.
 - `RICHMAN` is the one non-run credit utility code: it adds 1000 credits and does not set cheated status.
 
-## 20. Rendering and performance
+## 21. Rendering and performance
 
 - Fullscreen and windowed changes resize the real canvas and synchronize camera dimensions.
 - The camera follows the player inside world bounds; render transforms world coordinates into the current camera view.
@@ -441,7 +488,7 @@ NUKE
 - Effects should remain readable and should not introduce mass heavy `shadowBlur` work.
 - Tech-Priest empowerment uses a cached glow sprite and an arc-render budget. This is a performant but artistically provisional solution.
 
-## 21. Known limitations and technical debt
+## 22. Known limitations and technical debt
 
 - No Victory Screen or real victory condition; runs are effectively endless.
 - One primary battlefield layout.
@@ -455,11 +502,12 @@ NUKE
 - `.gitattributes` defines LF normalization for future text changes; the existing tree was not mass-renormalized when the rule was introduced.
 - Documentation had drifted before this checkpoint; future changes must update this context and README alongside the implementation.
 
-## 22. Current roadmap
+## 23. Current roadmap
 
 ### Stage 0 — Current checkpoint
 
 - targeted impact grenades added before Enemy Evolution work resumes;
+- Bastion-7 Field Engineering ability implemented in v0.10.0-alpha;
 - documentation audit;
 - centralized build version and visible menu label;
 - internal release checklist;
@@ -501,7 +549,7 @@ Do not add a separate Summoner to the roadmap. The Tech-Priest of the Swarm alre
 - possible Coming Soon page;
 - decide between Early Access and a full release path.
 
-## 23. Codex workflow
+## 24. Codex workflow
 
 - Work on one concrete patch at a time.
 - Inspect actual code before editing; do not treat old documentation as the only source of truth.

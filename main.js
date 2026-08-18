@@ -1,5 +1,6 @@
 import {
   audio,
+  player,
   world,
   assets,
   menuOverlay,
@@ -16,15 +17,19 @@ import {
   updateGibs,
   updateWaveClear,
   updateDeathSequence,
+  getMetaArmoryDamageMultiplier,
+  getMetaUpgradeLevel,
 } from "./game.js";
 import { updatePlayer, updatePickups } from "./player.js";
 import { beginWave, updateWave, updateFoes, cleanupDeadFoes } from "./enemy.js";
-import { updateShots } from "./bullet.js";
+import { projectile, updateShots } from "./bullet.js";
 import { updateGrenades } from "./grenade.js";
+import { firstSolidIntersection } from "./collision.js";
 import { render } from "./render.js";
 import { initInput, syncCurrentMusic, applyVolumeSettings } from "./input.js";
 import { t, updateStaticTranslations } from "./i18n.js";
 import { BUILD_LABEL } from "./version.js";
+import { getTurretLoopPlaybackRate, updateTurretAbility } from "./turret.js";
 
 // Main loop bootstrap that composes the gameplay modules.
 
@@ -34,6 +39,78 @@ function syncBuildVersion() {
 
   buildVersion.textContent = BUILD_LABEL;
   buildVersion.title = `Block Zero ${BUILD_LABEL}`;
+}
+
+function bastion7HasLineOfSight(origin, target) {
+  return !firstSolidIntersection(
+    origin.x,
+    origin.y,
+    target.x,
+    target.y,
+    world.destructibles,
+  );
+}
+
+function spawnBastion7Shot(shot) {
+  projectile(
+    shot.origin,
+    shot.angle,
+    shot.speed,
+    shot.damage,
+    shot.color,
+    shot.style,
+    true,
+    shot.radius,
+    {
+      life: shot.life,
+      source: shot.source,
+    },
+  );
+}
+
+function signalBastion7Ready() {
+  audio.turretReady();
+}
+
+const bastion7Context = {
+  player,
+  pointer: world.pointer,
+  worldWidth: world.width,
+  worldHeight: world.height,
+  solids: world.destructibles,
+  actors: world.foes,
+  targets: world.foes,
+  combatEnabled: false,
+  wave: 1,
+  heavyCaliberLevel: 0,
+  overdriveMotorsLevel: 0,
+  rapidRedeploymentLevel: 0,
+  armoryDamageMultiplier: 1,
+  isVisible: bastion7HasLineOfSight,
+  onShot: spawnBastion7Shot,
+  onReady: signalBastion7Ready,
+};
+
+function updateBastion7(dt, combatEnabled) {
+  bastion7Context.pointer = world.pointer;
+  bastion7Context.worldWidth = world.width;
+  bastion7Context.worldHeight = world.height;
+  bastion7Context.solids = world.destructibles;
+  bastion7Context.actors = world.foes;
+  bastion7Context.targets = world.foes;
+  bastion7Context.combatEnabled = combatEnabled;
+  bastion7Context.wave = world.wave;
+  bastion7Context.heavyCaliberLevel = getMetaUpgradeLevel("field_heavy_caliber");
+  bastion7Context.overdriveMotorsLevel = getMetaUpgradeLevel("field_overdrive_motors");
+  bastion7Context.rapidRedeploymentLevel = getMetaUpgradeLevel("field_rapid_redeployment");
+  bastion7Context.armoryDamageMultiplier = getMetaArmoryDamageMultiplier();
+  updateTurretAbility(world.turretAbility, dt, bastion7Context);
+  const activeTurret = world.turretAbility.active;
+  audio.setBastion7Firing(
+    Boolean(combatEnabled && activeTurret?.firing),
+    !combatEnabled || !activeTurret,
+    getTurretLoopPlaybackRate(bastion7Context.overdriveMotorsLevel),
+  );
 }
 
 function update(dt) {
@@ -49,6 +126,7 @@ function update(dt) {
   }
 
   if (world.state === "wave_clear") {
+    updateBastion7(dt, false);
     updateGrenades(dt);
     updateParticles(dt);
     updateObjectDebris(dt);
@@ -83,6 +161,7 @@ function update(dt) {
 
   if (world.state === "intermission") {
     updatePlayer(dt, true);
+    updateBastion7(dt, false);
     updateShots(dt);
     updateGrenades(dt);
     updatePickups(dt);
@@ -102,6 +181,7 @@ function update(dt) {
   updatePlayer(dt, true);
   updateWave(dt);
   updateFoes(dt);
+  updateBastion7(dt, true);
   updateShots(dt);
   updateGrenades(dt);
   updateHunterDrone(dt);
@@ -132,6 +212,7 @@ function bootstrap() {
   world.leaderboard = loadLeaderboard();
   renderLeaderboard();
   resetGame();
+  audio.preloadBastion7Loop();
   assets.loadAll().then(() => {
     syncCurrentMusic();
   });

@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.10.0-alpha] — In Development
+
+### Field Engineering
+
+### Added
+
+- Added the Bastion-7 Sentry as a run-only active Field Engineering ability.
+- Added physical `KeyQ` hold-to-position and release-to-deploy controls, with Right Click and `Esc` cancellation.
+- Added separate stationary-base and rotating-head sprite rendering with explicit pivot and muzzle metadata.
+- Added automated cover-aware nearest-target acquisition and visible-projectile automatic fire.
+- Added a CSS-native Bastion-7 HUD card to the left of the grenade and weapon-slot cards.
+- Added complete English/Russian controls, status labels, and accessibility text.
+- Added dependency-free native regression coverage for turret configuration, placement, cooldown, lifetime, spread, targeting, full-auto behavior, and damage scaling.
+- Added the Field Engineering permanent meta-upgrade branch to the existing progression screen.
+- Added Heavy Caliber for Bastion-7 damage progression.
+- Added Overdrive Motors for Bastion-7 fire-rate progression.
+- Added Rapid Redeployment for Bastion-7 cooldown progression.
+
+### Audio
+
+- Bastion-7 now uses a dedicated sustained machine-gun firing loop.
+- Increased the dedicated Bastion-7 machine-gun loop runtime gain and synchronized playback rate with Overdrive Motors.
+
+### Visuals
+
+- Bastion-7 projectiles now use kinetic tracer visuals instead of green energy-like bolts.
+
+### Balance
+
+- Bastion-7 active duration increased from 14 to 30 seconds.
+- Bastion-7 now uses continuous full-auto fire at 0.10-second intervals instead of seven-round bursts.
+- Removed the Bastion-7 ammunition limit.
+- Bastion-7's 30-second cooldown now begins after the sentry deactivates rather than on deployment.
+- Its 600-unit attack range uses distance-scaled spread from ±7° to ±11°.
+- Base projectile damage increased from 7 to 10.
+- Bastion-7 damage now scales by 5% per wave after wave 4, before Field Engineering and the generic permanent Armory damage multiplier.
+- Bosses continue to receive 60% of calculated turret damage.
+
 ## [0.9.0-alpha] — In Development
 
 ### Added

@@ -20,6 +20,7 @@ import {
   hasSynergy,
 } from "./game.js";
 import { projectileHitsSolids } from "./collision.js";
+import { turretDamage } from "./turret.js";
 
 // Projectile spawning, weapon firing, and shot updates.
 
@@ -39,6 +40,7 @@ function projectile(origin, angle, speed, damage, color, style, friendly = false
     friendly,
     pierce: extra.pierce || 0,
     weaponId: extra.weaponId || null,
+    source: extra.source || (friendly ? "player" : "enemy"),
     splashRadius: extra.splashRadius || 0,
     explosive: Boolean(extra.explosive),
     hitIds: new Set(),
@@ -200,10 +202,19 @@ function updateShots(dt) {
     shot.x += shot.vx * dt;
     shot.y += shot.vy * dt;
     shot.life -= dt;
-    if (projectileHitsSolids(shot, 0.8)) return false;
+    if (projectileHitsSolids(shot, 0.8, { damageSolids: shot.source !== "turret" })) return false;
     for (const foe of world.foes) {
       if (shot.hitIds.has(foe)) continue;
       if (dist(shot, foe) <= shot.radius + foe.radius) {
+        if (shot.source === "turret") {
+          const damage = turretDamage(shot.damage, Boolean(foe.boss));
+          applyDamageToFoe(foe, damage, { source: "turret" });
+          foe.hitFlash = Math.max(foe.hitFlash || 0, 0.1);
+          shot.hitIds.add(foe);
+          burst(shot.x, shot.y, "#ffbd5e", 3, 0.46);
+          spawnImpactFlash(shot.x, shot.y, "#ffe8a6", 0.68, "needle");
+          return false;
+        }
         let damage = shot.damage;
         if (world.waveBonusModifiers.executionThreshold > 0 && foe.hp / foe.maxHp <= world.waveBonusModifiers.executionThreshold) {
           damage *= world.waveBonusModifiers.executionDamageMul;

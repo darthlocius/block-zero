@@ -16,6 +16,7 @@ import {
   mainMenuExitButton,
   controlsOverlay,
   closeControlsButton,
+  player,
   world,
   assets,
   startButton,
@@ -96,6 +97,11 @@ import { shoot, dash } from "./bullet.js";
 import { forceSpawnTechpriestNow } from "./enemy.js";
 import { throwGrenade } from "./grenade.js";
 import { setLanguage, t } from "./i18n.js";
+import {
+  beginTurretPlacement,
+  cancelTurretPlacement,
+  releaseTurretPlacement,
+} from "./turret.js";
 
 // Input wiring and audio UI controls.
 
@@ -106,6 +112,16 @@ function pointer(event) {
   world.pointerScreen.x = (event.clientX - rect.left) * scaleX;
   world.pointerScreen.y = (event.clientY - rect.top) * scaleY;
   syncPointerWorld();
+}
+
+function turretPlacementContext() {
+  return {
+    player,
+    worldWidth: world.width,
+    worldHeight: world.height,
+    solids: world.destructibles,
+    actors: world.foes,
+  };
 }
 
 function applyVolumeSettings() {
@@ -349,6 +365,10 @@ function initInput() {
     if (event.key === "Escape") {
       event.preventDefault();
 
+      if (cancelTurretPlacement(world.turretAbility)) {
+        return;
+      }
+
       if (achievementsOverlay?.classList.contains("visible")) {
         closeAchievementsOverlay();
         return;
@@ -399,6 +419,28 @@ function initInput() {
     const textInput = isTextInputTarget(event.target);
 
     if (textInput) {
+      return;
+    }
+
+    if (
+      event.code === "KeyQ"
+      && world.state === "playing"
+    ) {
+      event.preventDefault();
+
+      if (
+        !event.repeat
+        && !event.ctrlKey
+        && !event.altKey
+        && !event.metaKey
+      ) {
+        beginTurretPlacement(
+          world.turretAbility,
+          world.pointer,
+          turretPlacementContext(),
+        );
+      }
+
       return;
     }
 
@@ -458,6 +500,27 @@ function initInput() {
   });
 
   window.addEventListener("keyup", (event) => {
+    if (event.code === "KeyQ") {
+      if (
+        !world.turretAbility?.placement?.active
+        && isTextInputTarget(event.target)
+      ) {
+        return;
+      }
+      event.preventDefault();
+      if (world.state === "playing") {
+        const result = releaseTurretPlacement(
+          world.turretAbility,
+          world.pointer,
+          turretPlacementContext(),
+        );
+        if (result.deployed) audio.turretDeploy();
+      } else {
+        cancelTurretPlacement(world.turretAbility);
+      }
+      return;
+    }
+
     const key = normalizedControlKey(event);
     world.keys.delete(key);
 
@@ -469,8 +532,16 @@ function initInput() {
   canvas.addEventListener("mousemove", pointer);
   canvas.addEventListener("mousedown", (event) => {
     pointer(event);
+    if (event.button === 2 && cancelTurretPlacement(world.turretAbility)) {
+      event.preventDefault();
+      return;
+    }
+    if (event.button !== 0) return;
     world.pointer.down = true;
     shoot();
+  });
+  canvas.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
   });
   window.addEventListener("mouseup", () => {
     world.pointer.down = false;
