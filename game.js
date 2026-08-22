@@ -1,5 +1,14 @@
 ﻿// Shared game state, assets, UI helpers, and reusable systems.
 
+import {
+  ENGINEERING_DEVICE_IDS,
+  clearEngineeringRunDevice,
+  createEngineeringLoadoutState,
+  loadPreferredEngineeringDevice,
+  lockEngineeringDeviceForRun,
+  savePreferredEngineeringDevice,
+  setPreferredEngineeringDevice,
+} from "./engineering-loadout.js";
 import { addLanguageChangeListener, getLanguage, t } from "./i18n.js";
 import {
   META_PROGRESS_KEY,
@@ -19,6 +28,13 @@ import {
   stopActiveTurret,
   turretHudState,
 } from "./turret.js";
+import {
+  MANTICORE_CONFIG,
+  cancelManticorePlacement,
+  createManticoreAbilityState,
+  resetManticoreAbilityState,
+  stopActiveManticore,
+} from "./manticore.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -38,6 +54,12 @@ const mainMenuAudioButton = document.getElementById("mainMenuAudioButton");
 const mainMenuAudioPanel = document.getElementById("mainMenuAudioPanel");
 const mainMenuAudioState = document.getElementById("mainMenuAudioState");
 const mainMenuExitButton = document.getElementById("mainMenuExitButton");
+const engineeringLoadoutOverlay = document.getElementById("engineeringLoadoutOverlay");
+const engineeringLoadoutDialog = document.getElementById("engineeringLoadoutDialog");
+const engineeringLoadoutBeginButton = document.getElementById("engineeringLoadoutBeginButton");
+const engineeringLoadoutButtons = Array.from(
+  document.querySelectorAll("[data-engineering-device]"),
+);
 const controlsOverlay = document.getElementById("controlsOverlay");
 const closeControlsButton = document.getElementById("closeControlsButton");
 
@@ -51,6 +73,7 @@ const comboValue = document.getElementById("comboValue");
 const weaponValue = document.getElementById("weaponValue");
 const combatUtilityHud = document.getElementById("combatUtilityHud");
 const turretHud = document.getElementById("turretHud");
+const turretName = document.getElementById("turretName");
 const turretValue = document.getElementById("turretValue");
 const turretProgress = document.getElementById("turretProgress");
 const grenadeHud = document.getElementById("grenadeHud");
@@ -327,6 +350,8 @@ const assetManifest = {
     ally_drone: "assets/images/allies/drone.png",
     ally_turret_base: "assets/images/allies/turret-base.png",
     ally_turret_head: "assets/images/allies/turret-head.png",
+    ally_manticore_base: "assets/images/allies/manticore-base.png",
+    ally_manticore_head: "assets/images/allies/manticore-head.png",
     effect_hellhound_death: "assets/images/effects/hellhound_after_death.png",
     effect_orb_death: "assets/images/effects/orb_after_death.png",
     effect_tank_death: "assets/images/effects/tank_after_death.png",
@@ -351,6 +376,8 @@ const assetManifest = {
     gun_smg: "assets/audio/smg-fire.mp3",
     gun_rail: "assets/audio/coillance-fire.mp3",
     drone_beam: "assets/audio/hunterdrone-beam.mp3",
+    manticore_launch: "assets/audio/manticore-launch.mp3",
+    manticore_explosion: "assets/audio/manticore-explosion.mp3",
   },
 };
 
@@ -365,13 +392,28 @@ const battleTrackKeys = [
   "battle_music_08",
 ];
 
+const FIELD_ENGINEERING_AUDIO_GAIN = 0.5616;
+
 const BASTION7_FIRING_AUDIO = Object.freeze({
   src: "assets/audio/bastion7-machinegun-loop.wav",
   basePlaybackRate: TURRET_AUDIO_CONFIG.baseLoopPlaybackRate,
-  gain: 0.432,
+  gain: FIELD_ENGINEERING_AUDIO_GAIN,
   fadeIn: 0.015,
   fadeOut: 0.03,
   holdDuration: 0.08,
+});
+
+const MANTICORE_AUDIO_CONFIG = Object.freeze({
+  launch: Object.freeze({
+    key: "manticore_launch",
+    gain: FIELD_ENGINEERING_AUDIO_GAIN,
+    playbackRate: 1,
+  }),
+  explosion: Object.freeze({
+    key: "manticore_explosion",
+    gain: FIELD_ENGINEERING_AUDIO_GAIN,
+    playbackRate: 1,
+  }),
 });
 
 const playerSpritesheetMeta = {
@@ -496,9 +538,13 @@ const world = {
   camera: { x: 0, y: 0, width: canvas.width, height: canvas.height },
   pointerScreen: { x: canvas.width / 2, y: canvas.height / 2 },
   pointer: { x: canvas.width / 2, y: canvas.height / 2, down: false },
+  engineeringLoadout: createEngineeringLoadoutState(loadPreferredEngineeringDevice()),
   turretAbility: createTurretAbilityState(),
+  manticoreAbility: createManticoreAbilityState(),
   bullets: [],
   grenades: [],
+  manticoreShells: [],
+  manticoreExplosionEffects: [],
   grenadeCount: GRENADE_CONFIG.maxCharges,
   grenadeMax: GRENADE_CONFIG.maxCharges,
   grenadeCooldown: 0,
@@ -1784,13 +1830,6 @@ function recomputeActiveSynergies() {
     .filter((synergy) => synergy.condition(world.buildTagsCounter, world.acquiredRunBonuses))
     .map((synergy) => synergy.id);
   const newlyActivated = world.activeSynergies.filter((id) => !previous.has(id));
-  console.log("[build] activeSynergies:", [...world.activeSynergies]);
-  console.log(
-    "[build] synergyTitles:",
-    world.activeSynergies.map((id) => synergyTitle(id)),
-  );
-  if (newlyActivated.length) console.log("[build] newlyActivatedSynergies:", [...newlyActivated]);
-  console.log("[build] buildTagsCounter:", { ...world.buildTagsCounter });
   for (const synergyId of newlyActivated) {
     trackSynergyActivatedForAchievements(synergyId);
   }
@@ -1813,8 +1852,6 @@ function registerRunBonusSelection(bonus) {
   for (const tag of bonus.tags || []) {
     world.buildTagsCounter[tag] = (world.buildTagsCounter[tag] || 0) + 1;
   }
-  console.log("[build] acquiredRunBonuses:", [...world.acquiredRunBonuses]);
-  console.log("[build] buildTagsCounter:", { ...world.buildTagsCounter });
   return recomputeActiveSynergies();
 }
 
@@ -2050,7 +2087,9 @@ function hideDeathSequenceOverlay() {
 function startWaveClearSequence() {
   closeWaveBonusSelection();
   cancelTurretPlacement(world.turretAbility);
+  cancelManticorePlacement(world.manticoreAbility);
   stopActiveTurret(world.turretAbility, "wave_end");
+  stopActiveManticore(world.manticoreAbility, "wave_end");
   audio.stopBastion7Firing();
   world.enemyShots = [];
   world.bullets = [];
@@ -2114,7 +2153,9 @@ function chooseWaveBonus(id) {
 function startDeathSequence() {
   finalizeRunMetaProgress();
   clearSniperRuntime();
+  clearManticoreShellRuntime();
   resetTurretAbilityState(world.turretAbility);
+  resetManticoreAbilityState(world.manticoreAbility);
   world.state = "death_sequence";
   world.grenades = [];
   world.deathSequenceTimer = 2.45;
@@ -2654,6 +2695,20 @@ function audioManager() {
     turretReady() {
       this.tone(660, 0.1, "triangle", 0.018, { bus: "sfx" });
       this.tone(990, 0.16, "triangle", 0.014, { bus: "sfx" });
+    },
+    manticoreLaunch() {
+      return this.playAssetSfx(
+        MANTICORE_AUDIO_CONFIG.launch.key,
+        this.volumes.master * this.volumes.sfx * MANTICORE_AUDIO_CONFIG.launch.gain,
+        { playbackRate: MANTICORE_AUDIO_CONFIG.launch.playbackRate },
+      );
+    },
+    manticoreExplosion() {
+      return this.playAssetSfx(
+        MANTICORE_AUDIO_CONFIG.explosion.key,
+        this.volumes.master * this.volumes.sfx * MANTICORE_AUDIO_CONFIG.explosion.gain,
+        { playbackRate: MANTICORE_AUDIO_CONFIG.explosion.playbackRate },
+      );
     },
     dash() { this.tone(300, 0.16, "sawtooth", 0.03, { slideTo: 160, filter: { frequency: 900 }, bus: "sfx" }); },
     pickup(type) {
@@ -3687,6 +3742,11 @@ function clearSniperRuntime() {
   }
 }
 
+function clearManticoreShellRuntime() {
+  world.manticoreShells = [];
+  world.manticoreExplosionEffects = [];
+}
+
 function syncCheatToastDom() {
   if (!cheatToastRoot) return;
 
@@ -4071,6 +4131,7 @@ function isPauseAllowed() {
 function openPauseMenu() {
   if (!isPauseAllowed()) return;
   cancelTurretPlacement(world.turretAbility);
+  cancelManticorePlacement(world.manticoreAbility);
   audio.stopBastion7Firing();
   world.stateBeforePause = world.state;
   world.pauseOpenedAt = performance.now();
@@ -4102,7 +4163,9 @@ function abortRunToSummary() {
 
   forceClosePauseMenu();
   clearSniperRuntime();
+  clearManticoreShellRuntime();
   resetTurretAbilityState(world.turretAbility);
+  resetManticoreAbilityState(world.manticoreAbility);
 
   finalizeRunMetaProgress();
 
@@ -4148,6 +4211,7 @@ function returnToMainMenuFromRun() {
   forceClosePauseMenu();
   clearSniperRuntime();
   resetTurretAbilityState(world.turretAbility);
+  resetManticoreAbilityState(world.manticoreAbility);
 
   world.pointer.down = false;
   world.enemyShots = [];
@@ -4173,6 +4237,7 @@ function returnToMainMenuFromResults() {
 
   clearSniperRuntime();
   resetTurretAbilityState(world.turretAbility);
+  resetManticoreAbilityState(world.manticoreAbility);
   hideScoreEntry();
   closeMetaOverlay();
   overlay.classList.remove("visible");
@@ -4203,9 +4268,73 @@ function syncMainMenuAudioState() {
   mainMenuAudioState.textContent = isOpen ? t("mainMenu.open") : t("mainMenu.closed");
 }
 
+function syncEngineeringLoadoutUi() {
+  const preferredDevice = world.engineeringLoadout?.preferredDevice
+    || ENGINEERING_DEVICE_IDS.BASTION_7;
+  if (mainMenuOverlay) {
+    mainMenuOverlay.dataset.preferredDevice = preferredDevice;
+  }
+  if (engineeringLoadoutOverlay) {
+    engineeringLoadoutOverlay.dataset.preferredDevice = preferredDevice;
+  }
+  for (const button of engineeringLoadoutButtons) {
+    const selected = button.dataset.engineeringDevice === preferredDevice;
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", selected ? "true" : "false");
+  }
+}
+
+function selectPreferredEngineeringDevice(deviceId) {
+  const preferredDevice = setPreferredEngineeringDevice(
+    world.engineeringLoadout,
+    deviceId,
+  );
+  savePreferredEngineeringDevice(preferredDevice);
+  syncEngineeringLoadoutUi();
+  return preferredDevice;
+}
+
+function openEngineeringLoadoutPopup() {
+  if (!engineeringLoadoutOverlay || world.state !== "menu") return false;
+
+  syncEngineeringLoadoutUi();
+  engineeringLoadoutOverlay.classList.add("visible");
+  engineeringLoadoutOverlay.setAttribute("aria-hidden", "false");
+  if (mainMenuOverlay) {
+    mainMenuOverlay.inert = true;
+    mainMenuOverlay.setAttribute("inert", "");
+    mainMenuOverlay.setAttribute("aria-hidden", "true");
+  }
+
+  const selectedButton = engineeringLoadoutButtons.find(
+    (button) => button.getAttribute("aria-pressed") === "true",
+  );
+  (selectedButton || engineeringLoadoutDialog || engineeringLoadoutBeginButton)
+    ?.focus({ preventScroll: true });
+  return true;
+}
+
+function closeEngineeringLoadoutPopup({ restoreFocus = true } = {}) {
+  const wasOpen = Boolean(engineeringLoadoutOverlay?.classList.contains("visible"));
+  engineeringLoadoutOverlay?.classList.remove("visible");
+  engineeringLoadoutOverlay?.setAttribute("aria-hidden", "true");
+  if (mainMenuOverlay) {
+    mainMenuOverlay.inert = false;
+    mainMenuOverlay.removeAttribute("inert");
+    mainMenuOverlay.removeAttribute("aria-hidden");
+  }
+  if (wasOpen && restoreFocus) {
+    mainMenuStartButton?.focus({ preventScroll: true });
+  }
+  return wasOpen;
+}
+
 function showMainMenu() {
   clearSniperRuntime();
+  clearManticoreShellRuntime();
+  clearEngineeringRunDevice(world.engineeringLoadout);
   resetTurretAbilityState(world.turretAbility);
+  resetManticoreAbilityState(world.manticoreAbility);
   clearActiveRunCheats();
   resetWeaponSlotState();
   world.state = "menu";
@@ -4213,6 +4342,8 @@ function showMainMenu() {
   forceClosePauseMenu();
   world.resultOverlayKind = null;
   clearAnnouncements();
+  closeEngineeringLoadoutPopup({ restoreFocus: false });
+  syncEngineeringLoadoutUi();
   mainMenuOverlay?.classList.add("visible");
   document.body.classList.add("has-main-menu");
   audio.setMode("menu");
@@ -4226,6 +4357,7 @@ function showMainMenu() {
 }
 
 function hideMainMenu() {
+  closeEngineeringLoadoutPopup({ restoreFocus: false });
   mainMenuOverlay?.classList.remove("visible");
   document.body.classList.remove("has-main-menu");
 }
@@ -4871,6 +5003,48 @@ function enemyFrameFor(foe, meta, state) {
   };
 }
 
+function manticoreHudState(ability) {
+  if (!ability) return { mode: "ready", value: "", progress: 1 };
+  if (ability.placement.active) {
+    return { mode: "placement", value: "", progress: 1 };
+  }
+  if (ability.active) {
+    return {
+      mode: "active",
+      value: String(Math.ceil(ability.active.remaining)),
+      progress: clamp(
+        ability.active.remaining / MANTICORE_CONFIG.activeDuration,
+        0,
+        1,
+      ),
+    };
+  }
+  if (ability.cooldown > 0) {
+    const cooldownDuration = Number.isFinite(ability.cooldownDuration)
+      ? ability.cooldownDuration
+      : MANTICORE_CONFIG.cooldown;
+    return {
+      mode: "cooldown",
+      value: String(Math.ceil(ability.cooldown)),
+      progress: clamp(1 - ability.cooldown / cooldownDuration, 0, 1),
+    };
+  }
+  return { mode: "ready", value: "", progress: 1 };
+}
+
+function getEngineeringHudState(runDevice, bastionState, manticoreState) {
+  const deviceId = runDevice === ENGINEERING_DEVICE_IDS.MANTICORE_4
+    ? ENGINEERING_DEVICE_IDS.MANTICORE_4
+    : ENGINEERING_DEVICE_IDS.BASTION_7;
+  const ability = deviceId === ENGINEERING_DEVICE_IDS.MANTICORE_4
+    ? manticoreState
+    : bastionState;
+  const state = deviceId === ENGINEERING_DEVICE_IDS.MANTICORE_4
+    ? manticoreHudState(ability)
+    : turretHudState(ability);
+  return { ...state, deviceId, ability };
+}
+
 function syncHud() {
   const healthCurrent = Math.max(0, Math.ceil(player.health));
   const healthRatio = clamp(player.health / player.maxHealth, 0, 1);
@@ -4889,36 +5063,54 @@ function syncHud() {
     );
   combatUtilityHud?.classList.toggle("hidden", !combatUtilityHudVisible);
   syncWeaponSlotsHud();
-  const turretState = turretHudState(world.turretAbility);
-  if (turretValue) turretValue.textContent = turretState.value;
-  if (turretProgress) turretProgress.style.width = `${turretState.progress * 100}%`;
+  const engineeringState = getEngineeringHudState(
+    world.engineeringLoadout.runDevice,
+    world.turretAbility,
+    world.manticoreAbility,
+  );
+  const deviceNameKey = engineeringState.deviceId === ENGINEERING_DEVICE_IDS.MANTICORE_4
+    ? "engineeringHud.manticore.name"
+    : "engineeringHud.bastion.name";
+  const deviceName = t(deviceNameKey);
+  const statusText = t(`engineeringHud.status.${engineeringState.mode}`);
+  if (turretName) turretName.textContent = deviceName;
+  if (turretValue) {
+    turretValue.textContent = engineeringState.value
+      ? t("engineeringHud.statusWithSeconds", {
+        status: statusText,
+        seconds: engineeringState.value,
+      })
+      : statusText;
+  }
+  if (turretProgress) {
+    turretProgress.style.width = `${engineeringState.progress * 100}%`;
+  }
   if (turretHud) {
+    turretHud.dataset.engineeringDevice = engineeringState.deviceId;
+    turretHud.dataset.engineeringState = engineeringState.mode;
     for (const mode of ["ready", "placement", "active", "cooldown"]) {
-      turretHud.classList.toggle(`is-${mode}`, turretState.mode === mode);
+      turretHud.classList.toggle(`is-${mode}`, engineeringState.mode === mode);
     }
     turretHud.classList.toggle(
-      "is-cooldown-ending",
-      turretState.mode === "cooldown" && world.turretAbility.cooldown <= 3,
+      "is-manticore",
+      engineeringState.deviceId === ENGINEERING_DEVICE_IDS.MANTICORE_4,
     );
-    turretHud.classList.toggle("is-ready-flash", world.turretAbility.readyFlash > 0);
-    if (turretState.mode === "active") {
-      turretHud.setAttribute(
-        "aria-label",
-        t("ui.turretActive", {
-          seconds: Math.ceil(world.turretAbility.active.remaining),
-        }),
-      );
-    } else if (turretState.mode === "cooldown") {
-      turretHud.setAttribute(
-        "aria-label",
-        t("ui.turretCooldown", { seconds: Math.ceil(world.turretAbility.cooldown) }),
-      );
-    } else {
-      turretHud.setAttribute(
-        "aria-label",
-        t(turretState.mode === "placement" ? "ui.turretPlacement" : "ui.turretReady"),
-      );
-    }
+    turretHud.classList.toggle(
+      "is-cooldown-ending",
+      engineeringState.mode === "cooldown"
+        && engineeringState.ability.cooldown <= 3,
+    );
+    turretHud.classList.toggle(
+      "is-ready-flash",
+      Boolean(engineeringState.ability?.readyFlash > 0),
+    );
+    turretHud.setAttribute(
+      "aria-label",
+      t(`engineeringHud.aria.${engineeringState.mode}`, {
+        device: deviceName,
+        seconds: engineeringState.value,
+      }),
+    );
   }
   if (grenadeValue) {
     grenadeValue.textContent = `×${world.grenadeCount}`;
@@ -4969,6 +5161,7 @@ function syncBuffs() {
 
 function refreshLocalizedUi() {
   syncHud();
+  syncEngineeringLoadoutUi();
   syncMainMenuAudioState();
   renderLeaderboard();
   renderMetaUpgrades();
@@ -5163,7 +5356,10 @@ function menuOverlay() {
 function resetGame() {
   clearActiveRunCheats();
   clearSniperRuntime();
+  clearManticoreShellRuntime();
+  clearEngineeringRunDevice(world.engineeringLoadout);
   resetTurretAbilityState(world.turretAbility);
+  resetManticoreAbilityState(world.manticoreAbility);
   audio.stopBastion7Firing();
   world.bullets = [];
   world.grenades = [];
@@ -5273,12 +5469,14 @@ function resetGame() {
 
 async function startGame() {
   hideMainMenu();
+  canvas?.focus({ preventScroll: true });
   overlay.classList.remove("visible");
   await assets.loadAll();
   await audio.unlock();
   audio.resetBattlePlaylist();
   audio.setMode("battle");
   resetGame();
+  lockEngineeringDeviceForRun(world.engineeringLoadout);
   applyNextRunCheats();
   spawnArmoryCheatPickups();
   if (!world.cheatsUsed) {
@@ -5549,7 +5747,6 @@ function createHunterDroneSwarm() {
       fireOffset: rand(0, 0.18),
     }
   ));
-  console.log("[drone] swarm created", swarm.length);
   return swarm;
 }
 
@@ -5855,6 +6052,9 @@ export {
   mainMenuAudioPanel,
   mainMenuAudioState,
   mainMenuExitButton,
+  engineeringLoadoutOverlay,
+  engineeringLoadoutBeginButton,
+  engineeringLoadoutButtons,
   controlsOverlay,
   closeControlsButton,
   healthValue,
@@ -6029,6 +6229,10 @@ export {
   returnToMainMenuFromResults,
   toggleMainMenuAudioSettings,
   syncMainMenuAudioState,
+  syncEngineeringLoadoutUi,
+  selectPreferredEngineeringDevice,
+  openEngineeringLoadoutPopup,
+  closeEngineeringLoadoutPopup,
   isActiveRunState,
   isPauseAllowed,
   openControlsOverlay,
@@ -6069,6 +6273,7 @@ export {
   enemyFrameFor,
   syncBuffs,
   syncHud,
+  getEngineeringHudState,
   generateTerrain,
   makeSolid,
   spawnWaveBarrels,

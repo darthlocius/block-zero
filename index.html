@@ -93,52 +93,62 @@
 
         <div class="main-menu-content" role="dialog" aria-label="Block Zero main menu" data-i18n-aria-label="mainMenu.ariaLabel">
           <nav class="main-menu-actions" aria-label="Main menu" data-i18n-aria-label="mainMenu.navAria">
-            <button id="mainMenuStartButton" class="main-menu-button main-menu-button-primary" type="button" data-i18n="mainMenu.start">Start Game</button>
-
-            <button id="mainMenuControlsButton" class="main-menu-button" type="button" data-i18n="mainMenu.controls">Controls</button>
-
-            <button id="mainMenuFullscreenButton" class="main-menu-button main-menu-button-status" type="button">
-              <span data-i18n="mainMenu.fullscreen">Fullscreen</span>
-              <strong id="mainMenuFullscreenState" data-i18n="mainMenu.off">OFF</strong>
-            </button>
-
-            <button id="mainMenuUpgradesButton" class="main-menu-button" type="button" data-i18n="mainMenu.upgrades">Upgrades</button>
-
-            <button id="mainMenuSynergyGuideButton" class="main-menu-button" type="button" data-i18n="mainMenu.synergyGuide">Synergy Guide</button>
-
-            <button id="mainMenuAchievementsButton" class="main-menu-button" type="button" data-i18n="mainMenu.achievements">Achievements</button>
-
-            <button id="mainMenuHallButton" class="main-menu-button" type="button" data-i18n="mainMenu.hallOfFame">Hall of Fame</button>
-
-            <button id="mainMenuAudioButton" class="main-menu-button main-menu-button-status" type="button" aria-expanded="false">
-              <span data-i18n="mainMenu.audioSettings">Audio Settings</span>
-              <strong id="mainMenuAudioState" data-i18n="mainMenu.closed">CLOSED</strong>
-            </button>
-
-            <div id="mainMenuAudioPanel" class="main-menu-audio-panel hidden">
-              <label class="audio-control">
-                <span data-i18n="ui.masterVolume">Master volume</span>
-                <input id="masterVolume" type="range" min="0" max="100" value="70">
-              </label>
-              <label class="audio-control">
-                <span data-i18n="ui.music">Music</span>
-                <input id="musicVolume" type="range" min="0" max="100" value="68">
-              </label>
-              <label class="audio-control">
-                <span data-i18n="ui.sfx">Effects</span>
-                <input id="sfxVolume" type="range" min="0" max="100" value="82">
-              </label>
+            <div class="main-menu-start">
+              <button id="mainMenuStartButton" class="main-menu-button main-menu-button-primary" type="button" data-i18n="mainMenu.start">Start Game</button>
             </div>
 
-            <div class="main-menu-setting-row" role="group" aria-label="Language" data-i18n-aria-label="mainMenu.language">
-              <span data-i18n="mainMenu.language">Language</span>
-              <div class="main-menu-language-buttons">
-                <button class="main-menu-chip language-button active" type="button" data-language-option="en" aria-pressed="true">EN</button>
-                <button class="main-menu-chip language-button" type="button" data-language-option="ru" aria-pressed="false">RU</button>
+            <div class="main-menu-arc main-menu-arc-left">
+              <button id="mainMenuControlsButton" class="main-menu-button main-menu-arc-item main-menu-arc-level-1" type="button" data-i18n="mainMenu.controls">Controls</button>
+
+              <button id="mainMenuUpgradesButton" class="main-menu-button main-menu-arc-item main-menu-arc-level-2" type="button" data-i18n="mainMenu.upgrades">Upgrades</button>
+
+              <button id="mainMenuAchievementsButton" class="main-menu-button main-menu-arc-item main-menu-arc-level-3" type="button" data-i18n="mainMenu.achievements">Achievements</button>
+
+              <div class="main-menu-audio-cluster main-menu-arc-item main-menu-arc-level-4">
+                <button id="mainMenuAudioButton" class="main-menu-button main-menu-button-status" type="button" aria-expanded="false">
+                  <span data-i18n="mainMenu.audioSettings">Audio Settings</span>
+                  <strong id="mainMenuAudioState" data-i18n="mainMenu.closed">CLOSED</strong>
+                </button>
+
+                <div id="mainMenuAudioPanel" class="main-menu-audio-panel hidden">
+                  <label class="audio-control">
+                    <span data-i18n="ui.masterVolume">Master volume</span>
+                    <input id="masterVolume" type="range" min="0" max="100" value="70">
+                  </label>
+                  <label class="audio-control">
+                    <span data-i18n="ui.music">Music</span>
+                    <input id="musicVolume" type="range" min="0" max="100" value="68">
+                  </label>
+                  <label class="audio-control">
+                    <span data-i18n="ui.sfx">Effects</span>
+                    <input id="sfxVolume" type="range" min="0" max="100" value="82">
+                  </label>
+                </div>
               </div>
             </div>
 
-            <button id="mainMenuExitButton" class="main-menu-button main-menu-button-danger" type="button" data-i18n="mainMenu.exit">Exit</button>
+            <div class="main-menu-arc main-menu-arc-right">
+              <button id="mainMenuFullscreenButton" class="main-menu-button main-menu-button-status main-menu-arc-item main-menu-arc-level-1" type="button">
+                <span data-i18n="mainMenu.fullscreen">Fullscreen</span>
+                <strong id="mainMenuFullscreenState" data-i18n="mainMenu.off">OFF</strong>
+              </button>
+
+              <button id="mainMenuSynergyGuideButton" class="main-menu-button main-menu-arc-item main-menu-arc-level-2" type="button" data-i18n="mainMenu.synergyGuide">Synergy Guide</button>
+
+              <button id="mainMenuHallButton" class="main-menu-button main-menu-arc-item main-menu-arc-level-3" type="button" data-i18n="mainMenu.hallOfFame">Hall of Fame</button>
+
+              <div class="main-menu-setting-row main-menu-arc-item main-menu-arc-level-4" role="group" aria-label="Language" data-i18n-aria-label="mainMenu.language">
+                <span data-i18n="mainMenu.language">Language</span>
+                <div class="main-menu-language-buttons">
+                  <button class="main-menu-chip language-button active" type="button" data-language-option="en" aria-pressed="true">EN</button>
+                  <button class="main-menu-chip language-button" type="button" data-language-option="ru" aria-pressed="false">RU</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="main-menu-exit">
+              <button id="mainMenuExitButton" class="main-menu-button main-menu-button-danger" type="button" data-i18n="mainMenu.exit">Exit</button>
+            </div>
           </nav>
           <p
             id="buildVersion"
@@ -146,6 +156,63 @@
             aria-label="Build version"
           ></p>
         </div>
+      </div>
+
+      <div id="engineeringLoadoutOverlay" class="engineering-loadout-overlay" aria-hidden="true">
+        <section
+          id="engineeringLoadoutDialog"
+          class="engineering-loadout-panel"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="engineeringLoadoutPopupTitle"
+          tabindex="-1"
+        >
+          <h2 id="engineeringLoadoutPopupTitle" data-i18n="engineeringLoadout.title">ENGINEERING LOADOUT</h2>
+          <div class="engineering-loadout-options">
+            <button
+              id="engineeringDeviceBastion7"
+              class="engineering-device-card selected"
+              type="button"
+              data-engineering-device="bastion7"
+              aria-pressed="true"
+            >
+              <span class="engineering-device-card-head">
+                <span class="engineering-device-pictogram engineering-device-pictogram-bastion" aria-hidden="true"></span>
+                <strong data-i18n="engineeringLoadout.bastion.name">Bastion-7 Sentry</strong>
+                <span class="engineering-device-selected" data-i18n="engineeringLoadout.selected">SELECTED</span>
+              </span>
+              <span class="engineering-device-description" data-i18n="engineeringLoadout.bastion.description">Rapid-fire sentry for sustained fire and lane defense.</span>
+              <span class="engineering-device-features">
+                <span data-i18n="engineeringLoadout.bastion.featureFire">Rapid fire</span>
+                <span data-i18n="engineeringLoadout.bastion.featureTarget">Single-target</span>
+                <span data-i18n="engineeringLoadout.bastion.featureRange">600 range</span>
+              </span>
+            </button>
+
+            <button
+              id="engineeringDeviceManticore4"
+              class="engineering-device-card"
+              type="button"
+              data-engineering-device="manticore4"
+              aria-pressed="false"
+            >
+              <span class="engineering-device-card-head">
+                <span class="engineering-device-pictogram engineering-device-pictogram-manticore" aria-hidden="true"></span>
+                <strong data-i18n="engineeringLoadout.manticore.name">Manticore-4 Grenade Sentry</strong>
+                <span class="engineering-device-selected" data-i18n="engineeringLoadout.selected">SELECTED</span>
+              </span>
+              <span class="engineering-device-description" data-i18n="engineeringLoadout.manticore.description">Heavy thermobaric sentry. Devastating against clustered enemies.</span>
+              <span class="engineering-device-features">
+                <span data-i18n="engineeringLoadout.manticore.featureDamage">Heavy AoE</span>
+                <span data-i18n="engineeringLoadout.manticore.featureMinimum">190 minimum range</span>
+                <span data-i18n="engineeringLoadout.manticore.featureRange">750 range</span>
+              </span>
+            </button>
+          </div>
+          <div class="engineering-loadout-actions">
+            <button id="engineeringLoadoutBeginButton" class="main-menu-button main-menu-button-primary engineering-loadout-begin" type="button" data-i18n="engineeringLoadout.beginRun">BEGIN RUN</button>
+          </div>
+        </section>
       </div>
 
       <div id="cheatToastRoot" class="cheat-toast-root" aria-live="polite"></div>
@@ -178,7 +245,7 @@
       </div>
 
       <div id="gameFrame" class="canvas-frame">
-        <canvas id="gameCanvas" width="1120" height="680" aria-label="Game field" data-i18n-aria-label="ui.gameCanvas"></canvas>
+        <canvas id="gameCanvas" width="1120" height="680" tabindex="-1" aria-label="Game field" data-i18n-aria-label="ui.gameCanvas"></canvas>
 
         <button id="fullscreenButton" class="fullscreen-button" type="button" aria-label="Fullscreen" title="Fullscreen" data-i18n-aria-label="ui.fullscreen" data-i18n-title="ui.fullscreen">
           ⛶
@@ -231,8 +298,13 @@
             <span class="turret-hud-icon" aria-hidden="true">
               <span class="turret-hud-head"></span>
               <span class="turret-hud-base"></span>
+              <span class="manticore-hud-tubes"></span>
+              <span class="manticore-hud-base"></span>
             </span>
-            <strong id="turretValue" class="turret-hud-value"></strong>
+            <span class="turret-hud-copy">
+              <span id="turretName" class="turret-hud-name">Bastion-7</span>
+              <strong id="turretValue" class="turret-hud-value">READY</strong>
+            </span>
             <span class="turret-hud-progress-track" aria-hidden="true">
               <span id="turretProgress" class="turret-hud-progress"></span>
             </span>

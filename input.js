@@ -14,6 +14,9 @@ import {
   mainMenuFullscreenState,
   mainMenuAudioButton,
   mainMenuExitButton,
+  engineeringLoadoutOverlay,
+  engineeringLoadoutBeginButton,
+  engineeringLoadoutButtons,
   controlsOverlay,
   closeControlsButton,
   player,
@@ -73,6 +76,9 @@ import {
   returnToMainMenuFromResults,
   toggleMainMenuAudioSettings,
   syncMainMenuAudioState,
+  selectPreferredEngineeringDevice,
+  openEngineeringLoadoutPopup,
+  closeEngineeringLoadoutPopup,
   isActiveRunState,
   isPauseAllowed,
   openLeaderboardOverlay,
@@ -98,10 +104,11 @@ import { forceSpawnTechpriestNow } from "./enemy.js";
 import { throwGrenade } from "./grenade.js";
 import { setLanguage, t } from "./i18n.js";
 import {
-  beginTurretPlacement,
-  cancelTurretPlacement,
-  releaseTurretPlacement,
-} from "./turret.js";
+  beginEngineeringPlacement,
+  cancelEngineeringPlacement,
+  hasActiveEngineeringPlacement,
+  releaseEngineeringPlacement,
+} from "./engineering-device-control.js";
 
 // Input wiring and audio UI controls.
 
@@ -114,7 +121,7 @@ function pointer(event) {
   syncPointerWorld();
 }
 
-function turretPlacementContext() {
+function engineeringPlacementContext() {
   return {
     player,
     worldWidth: world.width,
@@ -365,7 +372,12 @@ function initInput() {
     if (event.key === "Escape") {
       event.preventDefault();
 
-      if (cancelTurretPlacement(world.turretAbility)) {
+      if (cancelEngineeringPlacement(world)) {
+        return;
+      }
+
+      if (engineeringLoadoutOverlay?.classList.contains("visible")) {
+        closeEngineeringLoadoutPopup();
         return;
       }
 
@@ -434,10 +446,10 @@ function initInput() {
         && !event.altKey
         && !event.metaKey
       ) {
-        beginTurretPlacement(
-          world.turretAbility,
+        beginEngineeringPlacement(
+          world,
           world.pointer,
-          turretPlacementContext(),
+          engineeringPlacementContext(),
         );
       }
 
@@ -502,21 +514,26 @@ function initInput() {
   window.addEventListener("keyup", (event) => {
     if (event.code === "KeyQ") {
       if (
-        !world.turretAbility?.placement?.active
+        !hasActiveEngineeringPlacement(world)
         && isTextInputTarget(event.target)
       ) {
         return;
       }
       event.preventDefault();
       if (world.state === "playing") {
-        const result = releaseTurretPlacement(
-          world.turretAbility,
+        const result = releaseEngineeringPlacement(
+          world,
           world.pointer,
-          turretPlacementContext(),
+          engineeringPlacementContext(),
         );
-        if (result.deployed) audio.turretDeploy();
+        if (
+          result.deployed
+          && world.engineeringLoadout.runDevice === "bastion7"
+        ) {
+          audio.turretDeploy();
+        }
       } else {
-        cancelTurretPlacement(world.turretAbility);
+        cancelEngineeringPlacement(world);
       }
       return;
     }
@@ -532,7 +549,7 @@ function initInput() {
   canvas.addEventListener("mousemove", pointer);
   canvas.addEventListener("mousedown", (event) => {
     pointer(event);
-    if (event.button === 2 && cancelTurretPlacement(world.turretAbility)) {
+    if (event.button === 2 && cancelEngineeringPlacement(world)) {
       event.preventDefault();
       return;
     }
@@ -567,7 +584,7 @@ function initInput() {
   syncFullscreenUi();
   requestAnimationFrame(resizeGameViewportForFullscreen);
 
-  mainMenuStartButton?.addEventListener("click", startGame);
+  mainMenuStartButton?.addEventListener("click", openEngineeringLoadoutPopup);
   mainMenuControlsButton?.addEventListener("click", openControlsOverlay);
   mainMenuUpgradesButton?.addEventListener("click", openMetaOverlay);
   mainMenuSynergyGuideButton?.addEventListener("click", openSynergyGuideOverlay);
@@ -576,6 +593,17 @@ function initInput() {
   mainMenuAudioButton?.addEventListener("click", toggleMainMenuAudioSettings);
   mainMenuFullscreenButton?.addEventListener("click", toggleGameFullscreen);
   mainMenuExitButton?.addEventListener("click", exitToProjectPage);
+  for (const button of engineeringLoadoutButtons) {
+    button.addEventListener("click", () => {
+      selectPreferredEngineeringDevice(button.dataset.engineeringDevice);
+    });
+  }
+  engineeringLoadoutBeginButton?.addEventListener("click", startGame);
+  engineeringLoadoutOverlay?.addEventListener("click", (event) => {
+    if (event.target === engineeringLoadoutOverlay) {
+      closeEngineeringLoadoutPopup();
+    }
+  });
   closeControlsButton?.addEventListener("click", closeControlsOverlay);
   resumeRunButton?.addEventListener("click", closePauseMenu);
   abortRunButton?.addEventListener("click", abortRunToSummary);

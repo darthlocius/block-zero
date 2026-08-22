@@ -37,8 +37,6 @@ import { SNIPER_SPAWN, planSnipersForWave } from "./wave-planning.js";
 
 // Enemy spawning, waves, and AI behavior.
 
-const SWARM_DEBUG = false;
-
 const TECHPRIEST_BUFF = {
   hpMul: 1.65,
   damageMul: 1.5,
@@ -410,18 +408,6 @@ function spawnSwarmPack() {
   if (count < 8 || count > 12) return false;
 
   const packId = `swarm-${world.wave}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-
-  if (SWARM_DEBUG) {
-    console.debug("[swarm] spawn pack", {
-      wave: world.wave,
-      packId,
-      count,
-      side,
-      regularSpawned: currentWave.regularSpawned,
-      regularTotal: currentWave.regularTotal,
-      target: currentWave.swarmPackTarget,
-    });
-  }
 
   const { waveIndex } = waveScaling(world.wave);
   const hpScale = 1 + waveIndex * 0.035;

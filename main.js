@@ -19,16 +19,24 @@ import {
   updateDeathSequence,
   getMetaArmoryDamageMultiplier,
   getMetaUpgradeLevel,
+  applyDamageToFoe,
+  applyFoeKnockback,
 } from "./game.js";
 import { updatePlayer, updatePickups } from "./player.js";
 import { beginWave, updateWave, updateFoes, cleanupDeadFoes } from "./enemy.js";
 import { projectile, updateShots } from "./bullet.js";
 import { updateGrenades } from "./grenade.js";
-import { firstSolidIntersection } from "./collision.js";
+import { damageSolid, firstSolidIntersection } from "./collision.js";
+import { spawnManticoreShell, updateManticoreShells } from "./manticore-shell.js";
 import { render } from "./render.js";
 import { initInput, syncCurrentMusic, applyVolumeSettings } from "./input.js";
 import { t, updateStaticTranslations } from "./i18n.js";
 import { BUILD_LABEL } from "./version.js";
+import { ENGINEERING_DEVICE_IDS } from "./engineering-loadout.js";
+import {
+  manticoreTubeLaunchPosition,
+  updateManticoreAbility,
+} from "./manticore.js";
 import { getTurretLoopPlaybackRate, updateTurretAbility } from "./turret.js";
 
 // Main loop bootstrap that composes the gameplay modules.
@@ -113,6 +121,84 @@ function updateBastion7(dt, combatEnabled) {
   );
 }
 
+const manticoreContext = {
+  pointer: world.pointer,
+  worldWidth: world.width,
+  worldHeight: world.height,
+  player,
+  solids: world.destructibles,
+  enemies: world.foes,
+  targets: world.foes,
+  combatEnabled: false,
+  wave: 1,
+  heavyCaliberLevel: 0,
+  overdriveMotorsLevel: 0,
+  rapidRedeploymentLevel: 0,
+  armoryDamageMultiplier: 1,
+  onShot: null,
+};
+
+function spawnManticore4Shot(shot) {
+  const activeManticore = world.manticoreAbility?.active;
+  const launchPoint = manticoreTubeLaunchPosition(
+    activeManticore,
+    shot?.tubeIndex,
+  );
+  if (!launchPoint) return null;
+
+  const shell = spawnManticoreShell(world, shot, launchPoint, {
+    wave: manticoreContext.wave,
+    heavyCaliberLevel: manticoreContext.heavyCaliberLevel,
+    armoryDamageMultiplier: manticoreContext.armoryDamageMultiplier,
+  });
+  if (!shell) return null;
+
+  audio.manticoreLaunch();
+  return shell;
+}
+
+manticoreContext.onShot = spawnManticore4Shot;
+
+function updateManticore4(dt, combatEnabled) {
+  manticoreContext.pointer = world.pointer;
+  manticoreContext.worldWidth = world.width;
+  manticoreContext.worldHeight = world.height;
+  manticoreContext.solids = world.destructibles;
+  manticoreContext.enemies = world.foes;
+  manticoreContext.targets = world.foes;
+  manticoreContext.combatEnabled = combatEnabled;
+  manticoreContext.wave = world.wave;
+  manticoreContext.heavyCaliberLevel = getMetaUpgradeLevel("field_heavy_caliber");
+  manticoreContext.overdriveMotorsLevel = getMetaUpgradeLevel("field_overdrive_motors");
+  manticoreContext.rapidRedeploymentLevel = getMetaUpgradeLevel("field_rapid_redeployment");
+  manticoreContext.armoryDamageMultiplier = getMetaArmoryDamageMultiplier();
+  updateManticoreAbility(world.manticoreAbility, dt, manticoreContext);
+}
+
+function updateEngineeringDevice(dt, combatEnabled) {
+  const deviceId = world.engineeringLoadout?.runDevice;
+  if (deviceId === ENGINEERING_DEVICE_IDS.BASTION_7) {
+    updateBastion7(dt, combatEnabled);
+    return;
+  }
+
+  audio.stopBastion7Firing();
+  if (deviceId === ENGINEERING_DEVICE_IDS.MANTICORE_4) {
+    updateManticore4(dt, combatEnabled);
+  }
+}
+
+const manticoreShellCallbacks = {
+  applyDamageToFoe,
+  applyFoeKnockback,
+  damageSolid,
+  onDetonate: () => audio.manticoreExplosion(),
+};
+
+function updateManticoreShellRuntime(dt) {
+  updateManticoreShells(world, dt, manticoreShellCallbacks);
+}
+
 function update(dt) {
   if (world.state === "paused") {
     syncHud();
@@ -126,8 +212,9 @@ function update(dt) {
   }
 
   if (world.state === "wave_clear") {
-    updateBastion7(dt, false);
+    updateEngineeringDevice(dt, false);
     updateGrenades(dt);
+    updateManticoreShellRuntime(dt);
     updateParticles(dt);
     updateObjectDebris(dt);
     updateFireZones(dt);
@@ -141,6 +228,7 @@ function update(dt) {
 
   if (world.state === "perk_select") {
     updateGrenades(dt);
+    updateManticoreShellRuntime(dt);
     updateParticles(dt);
     updateObjectDebris(dt);
     updateFireZones(dt);
@@ -161,9 +249,10 @@ function update(dt) {
 
   if (world.state === "intermission") {
     updatePlayer(dt, true);
-    updateBastion7(dt, false);
+    updateEngineeringDevice(dt, false);
     updateShots(dt);
     updateGrenades(dt);
+    updateManticoreShellRuntime(dt);
     updatePickups(dt);
     updateHunterDrone(dt);
     updateParticles(dt);
@@ -181,9 +270,10 @@ function update(dt) {
   updatePlayer(dt, true);
   updateWave(dt);
   updateFoes(dt);
-  updateBastion7(dt, true);
+  updateEngineeringDevice(dt, true);
   updateShots(dt);
   updateGrenades(dt);
+  updateManticoreShellRuntime(dt);
   updateHunterDrone(dt);
   cleanupDeadFoes();
   updatePickups(dt);

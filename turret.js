@@ -1,4 +1,14 @@
-// Dependency-free Bastion-7 configuration, runtime, and pure gameplay helpers.
+// Browser-independent Bastion-7 configuration, runtime, and pure gameplay helpers.
+
+import {
+  FIELD_ENGINEERING_CONFIG as SHARED_FIELD_ENGINEERING_CONFIG,
+  getFieldEngineeringCooldown,
+  getFieldEngineeringCooldownMultiplier,
+  getFieldEngineeringDamageMultiplier,
+  getFieldEngineeringFireRateMultiplier,
+  getFieldEngineeringShotInterval,
+  normalizeFieldEngineeringLevel as normalizeSharedFieldEngineeringLevel,
+} from "./field-engineering.js";
 
 const DEG_TO_RAD = Math.PI / 180;
 const TAU = Math.PI * 2;
@@ -41,13 +51,15 @@ const TURRET_CONFIG = Object.freeze({
   visual: TURRET_VISUAL,
 });
 
-const FIELD_ENGINEERING_CONFIG = Object.freeze({
-  maxLevel: 5,
+const TURRET_WAVE_CONFIG = Object.freeze({
   waveScalingStartsAfter: 4,
   waveDamagePerWave: 0.05,
-  heavyCaliberDamagePerLevel: 0.06,
-  overdriveMotorsFireRatePerLevel: 0.04,
-  rapidRedeploymentCooldownPerLevel: 0.04,
+});
+
+// Compatibility export: preserve the pre-refactor Bastion-oriented config shape.
+const FIELD_ENGINEERING_CONFIG = Object.freeze({
+  ...SHARED_FIELD_ENGINEERING_CONFIG,
+  ...TURRET_WAVE_CONFIG,
 });
 
 const TURRET_AUDIO_CONFIG = Object.freeze({
@@ -297,9 +309,7 @@ function spreadForDistance(distance) {
 }
 
 function normalizeFieldEngineeringLevel(level) {
-  const numericLevel = Number(level);
-  if (!Number.isFinite(numericLevel)) return 0;
-  return clamp(Math.floor(numericLevel), 0, FIELD_ENGINEERING_CONFIG.maxLevel);
+  return normalizeSharedFieldEngineeringLevel(level);
 }
 
 function getTurretWaveDamageMultiplier(wave) {
@@ -307,39 +317,36 @@ function getTurretWaveDamageMultiplier(wave) {
   const currentWave = Number.isFinite(numericWave)
     ? Math.max(1, Math.floor(numericWave))
     : 1;
-  return 1 + FIELD_ENGINEERING_CONFIG.waveDamagePerWave * Math.max(
+  return 1 + TURRET_WAVE_CONFIG.waveDamagePerWave * Math.max(
     0,
-    currentWave - FIELD_ENGINEERING_CONFIG.waveScalingStartsAfter,
+    currentWave - TURRET_WAVE_CONFIG.waveScalingStartsAfter,
   );
 }
 
 function getTurretHeavyCaliberMultiplier(level) {
-  return 1 + FIELD_ENGINEERING_CONFIG.heavyCaliberDamagePerLevel
-    * normalizeFieldEngineeringLevel(level);
+  return getFieldEngineeringDamageMultiplier(level);
 }
 
 function getTurretFireRateMultiplier(level) {
-  return 1 + FIELD_ENGINEERING_CONFIG.overdriveMotorsFireRatePerLevel
-    * normalizeFieldEngineeringLevel(level);
+  return getFieldEngineeringFireRateMultiplier(level);
 }
 
 function getEffectiveTurretShotInterval(level, baseShotInterval = TURRET_CONFIG.shotInterval) {
   const safeBase = Number.isFinite(baseShotInterval) && baseShotInterval > 0
     ? baseShotInterval
     : TURRET_CONFIG.shotInterval;
-  return safeBase / getTurretFireRateMultiplier(level);
+  return getFieldEngineeringShotInterval(safeBase, level);
 }
 
 function getTurretCooldownMultiplier(level) {
-  return 1 - FIELD_ENGINEERING_CONFIG.rapidRedeploymentCooldownPerLevel
-    * normalizeFieldEngineeringLevel(level);
+  return getFieldEngineeringCooldownMultiplier(level);
 }
 
 function getEffectiveTurretCooldown(level, baseCooldown = TURRET_CONFIG.cooldown) {
   const safeBase = Number.isFinite(baseCooldown) && baseCooldown >= 0
     ? baseCooldown
     : TURRET_CONFIG.cooldown;
-  return safeBase * getTurretCooldownMultiplier(level);
+  return getFieldEngineeringCooldown(safeBase, level);
 }
 
 function getEffectiveTurretDamage({

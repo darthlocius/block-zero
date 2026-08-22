@@ -9,7 +9,8 @@ This is the author's first serious game project. A future Steam release is a pos
 ## 2. Current build
 
 ```text
-Current version: 0.10.0-alpha
+Current version: 0.11.0-alpha
+Release name: Heavy Ordnance
 Development status: Alpha
 ```
 
@@ -48,7 +49,7 @@ Automated regression tests use the native Node.js `node:test` runner with no ext
 node --test tests/*.test.mjs
 ```
 
-The current suite covers safe storage behavior, segment/rectangle collision geometry, Sniper wave planning, and the Bastion-7 pure core. Wave planners and automated combat helpers must preserve injectable random functions and visibility predicates as required testability seams; tests must never depend on uncontrolled `Math.random`. Pure gameplay helpers should remain importable without DOM/browser bootstrap where practical.
+The current 197-test suite covers safe storage behavior, segment/rectangle collision geometry, Sniper wave planning, shared Field Engineering formulas, Engineering Loadout persistence/routing, the Bastion-7 and Manticore-4 pure cores, Manticore audio hooks, and the Manticore shell runtime. Wave planners and automated combat helpers must preserve injectable random functions and visibility predicates as required testability seams; tests must never depend on uncontrolled `Math.random`. Pure gameplay helpers should remain importable without DOM/browser bootstrap where practical.
 
 ## 4. File map
 
@@ -57,7 +58,12 @@ The current suite covers safe storage behavior, segment/rectangle collision geom
 - `game.js` — shared DOM references, game and run state, content definitions, assets/audio, bonuses, synergies, achievements, meta progression, Hall of Fame, menus, run lifecycle, and common helpers.
 - `meta-progression.js` — dependency-free permanent upgrade registry, cost/purchase rules, and backward-compatible meta-save normalization.
 - `input.js` — keyboard and pointer input, fullscreen control, menu wiring, audio controls, and internal Forbidden Protocol entry handling.
-- `turret.js` — dependency-free Bastion-7 configuration, ability runtime, placement validation, cooldown/lifetime updates, spread, targeting, rotation, and full-auto logic.
+- `field-engineering.js` — dependency-free shared permanent Field Engineering level normalization, multipliers, and base interval/cooldown application helpers.
+- `engineering-loadout.js` — engineering device registry, safe preferred-device persistence, and pure preferred/run snapshot state helpers.
+- `manticore.js` — dependency-free Manticore-4 balance, AoE/knockback/ballistics, cluster targeting, four-tube cadence, placement, rotation/alignment, rendering metadata, lifetime, cooldown, and visual runtime state.
+- `manticore-shell.js` — dependency-free in-flight Manticore shell creation, ballistic movement, snapshotted impact resolution, and short-lived explosion-effect state; production callbacks keep ordinary foe, knockback, and destructible paths authoritative.
+- `engineering-device-control.js` — narrow physical-Q begin/release/cancel router that dispatches only to the run-locked Bastion or Manticore ability without owning either device's gameplay math.
+- `turret.js` — Bastion-7 configuration, ability runtime, placement validation, cooldown/lifetime updates, spread, targeting, rotation, and full-auto logic; it consumes the shared Field Engineering formulas while preserving its existing public exports.
 - `player.js` — player movement, firing trigger, ordinary pickup collection, and hold-to-equip weapon handling.
 - `enemy.js` — wave creation, spawning, enemy and boss behavior, Swarm packs, Sniper hitscan logic, Tech-Priest support logic, and wave completion.
 - `render.js` — canvas rendering for the map, actors, Sniper telegraphs/beams, effects, pickups, radar, crosshair, banners, and boss UI.
@@ -67,7 +73,7 @@ The current suite covers safe storage behavior, segment/rectangle collision geom
 - `wave-planning.js` — dependency-free Sniper wave-slot planning and its pure constants, shared by production enemy spawning and Node regression tests.
 - `i18n.js` — EN/RU strings, language persistence, translation helpers, and static DOM translation.
 - `storage.js` — dependency-free safe wrappers for browser persistence reads, writes, and removals.
-- `tests/` — deterministic native Node.js regression tests for storage safety, collision geometry, Sniper wave planning, and Bastion-7 core behavior.
+- `tests/` — deterministic native Node.js regression tests for storage safety, collision geometry, Sniper wave planning, shared Field Engineering formulas, Engineering Loadout state/persistence, Bastion-7/Manticore-4 core behavior, and Manticore shell integration contracts.
 - `index.html` — DOM structure for the canvas, HUD, main menu, modals, pause screen, results, achievements, and Hall of Fame.
 - `style.css` — layout and presentation for DOM UI, overlays, responsive states, and fullscreen behavior.
 - `assets/` — images, music, and sound effects loaded directly by the game.
@@ -107,6 +113,7 @@ The game currently uses these `localStorage` keys:
 | Key | Purpose |
 | --- | --- |
 | `block-zero-meta-v1` | Credits, lifetime run statistics, and all permanent upgrade levels. |
+| `block-zero-engineering-loadout-v1` | Preferred engineering device for the next run; never stores the current run snapshot. |
 | `block-zero-achievements-v1` | Achievement unlock timestamps and persistent kill/Swarm/barrel counters. |
 | `block-zero-leaderboard-v1` | Hall of Fame run records. |
 | `block-zero-player-name` | Last name entered for a Hall of Fame record. |
@@ -129,7 +136,7 @@ Gameplay controls use physical `event.code` mappings where layout independence m
 - `3` (`Digit3`) — switch to stored weapon slot 3 when occupied.
 - Hold `E` (`KeyE`) near a weapon pickup — equip it. The current hold duration is 0.35 seconds and the interaction radius is 56 world units.
 - `G` (`KeyG`) — throw a targeted impact grenade toward the world-space cursor.
-- `Q` (`KeyQ`) — hold to preview Bastion-7 placement at the world-space cursor and release to deploy; keyboard layout does not affect the physical key.
+- `Q` (`KeyQ`) — hold to preview the run-locked Field Engineering device at the world-space cursor and release to deploy; `runDevice === "bastion7"` uses the established Bastion flow and `runDevice === "manticore4"` uses the Manticore flow. Keyboard layout does not affect the physical key.
 - Right Click or `Esc` while the placement preview is active — cancel placement without deploying or starting cooldown. Placement cancellation consumes the first `Esc` instead of also opening pause.
 - `Esc` — pause/resume an active run, close the topmost menu overlay, return from results, or confirm the finished death sequence where applicable.
 - Fullscreen — UI buttons only.
@@ -150,24 +157,26 @@ The pointer is converted from CSS pixels into real canvas coordinates, then into
 - Grenade inventory and in-flight state are run-local and are not written to `localStorage`.
 - There are no grenade meta-upgrades and no random grenade pickups in this build.
 
-## 9. Field Engineering — Bastion-7
+## 9. Field Engineering — Bastion-7 and Manticore-4 runtime
 
-Bastion-7 Sentry / `Турель «Бастион-7»` is the Field Engineering active ability. Its internal id is `bastion7`. The existing permanent meta screen includes a three-upgrade Field Engineering branch for this ability. This version still includes only the machine-gun sentry: there is no grenade turret, second device, repair, pickup, charge inventory, new currency, dedicated persistence key, or Field Engineering achievement.
+Bastion-7 Sentry / `Турель «Бастион-7»` and Manticore-4 Grenade Sentry / `Гранатомётная турель «Мантикора-4»` are officially available Field Engineering alternatives. Bastion remains the default. The existing permanent meta screen includes the shared three-upgrade Field Engineering branch; there is no repair, pickup, charge inventory, new currency, or Field Engineering achievement.
 
 ### Architecture and ownership
 
-- `turret.js` is dependency-free and owns the frozen config, Field Engineering formulas, run-state factory/reset, pure placement validation, cooldown/lifetime updates, wave/damage/boss scaling, distance spread, nearest-visible targeting, turn interpolation, full-auto cadence, audio-rate math, and shot descriptors.
+- `field-engineering.js` is dependency-free and owns the shared permanent-upgrade level normalization, Heavy Caliber damage multiplier, Overdrive Motors fire-rate multiplier, Rapid Redeployment cooldown multiplier, and generic base interval/cooldown application helpers.
+- `engineering-loadout.js` exposes both `bastion7` and `manticore4` as available ids. The pre-run Engineering Loadout popup updates and safely persists `preferredDevice` between runs; missing, malformed, unknown, or invalid preferences fall back to `bastion7`. The persisted JSON schema still contains only `preferredDevice`.
+- `turret.js` depends only on `field-engineering.js` and owns the frozen Bastion config, compatibility exports, run-state factory/reset, pure placement validation, cooldown/lifetime updates, wave/damage/boss scaling, distance spread, nearest-visible targeting, turn interpolation, full-auto cadence, audio-rate math, and shot descriptors.
 - `meta-progression.js` owns the existing registry and generic state/cost/purchase helpers. The Field Engineering ids are `field_heavy_caliber`, `field_overdrive_motors`, and `field_rapid_redeployment`; all use the existing credit balance and `block-zero-meta-v1` save.
-- `game.js` owns DOM references and stores one `world.turretAbility` run-state object. Existing lifecycle functions reset or stop it on wave clear, death, abort, retry, results/menu return, and new-run reset.
-- `main.js` injects the existing `firstSolidIntersection(...)` LOS path, `projectile(...)` creation, firing-loop state updates, current wave, Field Engineering levels, world collections, and `getMetaArmoryDamageMultiplier()` into the turret core. `turret.js` never imports `game.js`, `bullet.js`, or browser APIs, so this dependency direction creates no import cycle.
+- `game.js` owns DOM references and `world.engineeringLoadout`, keeps the Bastion runtime in `world.turretAbility`, and keeps the independent Manticore runtime in `world.manticoreAbility`. Application bootstrap loads the persisted `preferredDevice` with `runDevice: null`; `preferredDevice` may change only between runs, and the popup's `BEGIN RUN` action reaches the single existing `startGame()` path, which locks it after resetting both abilities. Results retain that snapshot, and final main-menu return clears only `runDevice`, so the next run can lock the latest preference. No combat switching exists.
+- `main.js` injects the existing `firstSolidIntersection(...)` LOS path and `projectile(...)` creation only into Bastion. Its narrow Manticore wrapper injects foes, wave, Field Engineering levels, `getMetaArmoryDamageMultiplier()`, combat-state gating, and a callback that forwards the core shot descriptor plus the rotated tube launch point to `spawnManticoreShell(...)`; Manticore has no LOS or predictive-lead input.
 - `bullet.js` records `source: "turret"`. Turret projectiles use the ordinary friendly projectile array and enemy hit/death path, but skip weapon execution bonuses, weapon knockback, weapon synergies, and weapon ids. They stop on live solids through the existing collision helper while explicitly suppressing `damageSolid(...)`.
-- `render.js` consumes frozen rendering metadata and the two manifest assets. The persistent HUD pictogram is CSS-native and does not use either gameplay PNG.
+- `render.js` consumes the separate frozen Bastion and Manticore rendering metadata plus their manifest assets. The shared Q HUD reads the run-locked device, preserves the Bastion CSS pictogram, and uses the same front-facing CSS-native 2×2 four-launch-tube design as the Manticore selector card.
 
 ### Runtime and placement
 
 - Every run starts ready with cooldown 0, no active sentry, no placement preview, and no ready sound.
 - Hold physical `KeyQ` during `playing` to show the real base/head sprites at the camera-correct world cursor. Release `Q` to attempt deployment. Right Click or `Esc` cancels; a cancelled or invalid attempt leaves cooldown at 0.
-- Placement range is 480 world units. The full 42-unit footprint must remain inside world bounds, stay at least 70 units from the player, avoid all live solid rectangles, avoid physical overlap with living enemies, and require that no Bastion-7 is already active.
+- Placement range is 480 world units. The full device footprint (42 units for Bastion-7 and 46 for Manticore-4) must remain inside world bounds, stay at least 70 units from the player, avoid all live solid rectangles, avoid physical overlap with living enemies, and require that no installation of the selected type is already active.
 - The sentry is never added to destructible solids or actor collision. It provides no cover and does not block players, enemies, bullets, grenades, Hunter Drones, Sniper beams, or Tech-Priest attacks.
 - Successful deployment starts a 30-second active timer with unlimited ammunition and leaves cooldown inactive at 0. Natural expiry begins deactivation and the effective post-deactivation cooldown at the same simulation instant. The base cooldown is 30 seconds; Rapid Redeployment reduces it by 4% per level to 24 seconds at level 5 without changing active duration. Cooldown advances on simulation `dt` during `playing`, `intermission`, and the short `wave_clear` sequence; it freezes during pause, perk selection, death sequence, gameover, and menus.
 - Wave completion immediately removes an active sentry, discards any unused active time, starts the existing deactivation visual, and sets the same effective post-deactivation cooldown. Death, abort, retry/new run, and menu return reset the complete run-only ability state to ready with cooldown 0.
@@ -187,11 +196,27 @@ Bastion-7 Sentry / `Турель «Бастион-7»` is the Field Engineering 
 - Both 1254×1254 sprites render at a 92-unit square. The head pivot is explicit at normalized `(430/1254, 644/1254)` and the muzzle offset is `(738/1254, 0)` of render size from that pivot. Projectile origin and the short warm muzzle flash use the rotated muzzle offset.
 - Deployment eases from scale 0.72/alpha 0.55 to full size/alpha over 0.45 seconds with a restrained acid-green activation ring. Expiry uses a 0.28-second fade/spark deactivation without explosion, AoE, or wreck.
 - The preview uses both real sprites at alpha 0.48, a subtle 480-unit player radius, and green/red footprint feedback. Range circles are not retained after deployment.
-- The DOM HUD card sits immediately left of the grenade card, followed by weapon slots 2 and 3. Its CSS-only line pictogram, `Q` keycap, border, glow, typography, progress bar, ready/placement/active/cooldown states, final-three-second pulse, and ready flash reuse the established acid-green utility-card language. Active shows whole remaining seconds and lifetime progress; cooldown shows `ceil(cooldown)` after shutdown.
-- `assets/audio/bastion7-machinegun-loop.wav` is fetched once, decoded once into an `AudioBuffer`, and played through the existing SFX gain bus only while actual sustained firing is active. Runtime gain is `0.432` (1.8× the previous `0.24`). Baseline playback rate remains `0.94` and follows Overdrive Motors through `0.94 × fireRateMultiplier`, reaching `1.128` at level 5. The existing 15 ms fade-in, 30 ms fade-out, 80 ms target-switch hold, lifecycle cleanup, SFX volume, and mute paths are unchanged.
+- The single DOM Engineering HUD card sits immediately left of the grenade card, followed by weapon slots 2 and 3 on desktop. At 720 CSS pixels and narrower, the complete utility group becomes a viewport-centered two-row grid with Engineering and Grenade above weapon slots 2 and 3, while the 760px combat geometry stays unchanged. The Engineering card shows the name, localized ready/placement/active/cooldown status, whole remaining seconds, and the existing lifetime/cooldown progress semantics from the selected run-locked ability. Its `Q` keycap, border, glow, typography, final-three-second pulse, and Bastion ready flash reuse the established acid-green utility-card language. Bastion keeps its existing CSS line pictogram; Manticore uses a compact framed block with four round launch openings in a 2×2 arrangement and a small base.
+- `assets/audio/bastion7-machinegun-loop.wav` is fetched once, decoded once into an `AudioBuffer`, and played through the existing SFX gain bus only while actual sustained firing is active. Runtime gain is `0.5616` (exactly 30% above the previous `0.432`). Baseline playback rate remains `0.94` and follows Overdrive Motors through `0.94 × fireRateMultiplier`, reaching `1.128` at level 5. The existing 15 ms fade-in, 30 ms fade-out, 80 ms target-switch hold, lifecycle cleanup, SFX volume, and mute paths are unchanged.
 - `render.js` selects Bastion projectiles only through `source: "turret"` and draws a compact velocity-aligned warm white/yellow/gold tracer with an orange outer glow. `bullet.js` uses matching small warm impact sparks; projectile position, radius, speed, lifetime, collision, damage, and attribution are unchanged.
 - Run-only Bastion-7 state is never written to `localStorage`. Permanent Field Engineering levels use the unchanged `block-zero-meta-v1` object; old saves without the three ids normalize them to level 0 while preserving credits, existing levels, and lifetime statistics.
 - Bastion-7 recoil/shake, sprite pivot, muzzle offset, muzzle flash, sprite render size, bullet origin, deploy/deactivation visuals, and established turret/HUD rendering are intentionally frozen unless a future task explicitly requests them.
+- Engineering Loadout is no longer a permanent part of the main menu. `START GAME` opens a wide, compact pre-run popup over a translucent backdrop; its real device buttons immediately update and persist `preferredDevice`, and `BEGIN RUN` snapshots that value into `runDevice` through the existing start path. `Esc` or a backdrop click closes the popup without starting a run and returns focus to `START GAME`. Bastion remains the default. The shared physical-Q router dispatches begin/release/cancel strictly by the run-local `world.engineeringLoadout.runDevice`, so changing the next-run preference cannot switch the active run.
+- The main menu no longer uses a central rectangular control grid. `START GAME` is centered above the background soldier, `EXIT` is centered beneath the figure, and the remaining controls form mirrored four-item left/right arcs that keep the title and central art readable. Audio opens as a local panel below its left-arc control without reflowing either arc. Screens at 760 CSS pixels wide or narrower use a scrollable vertical fallback. Engineering Loadout remains the separate pre-run popup above this layout.
+
+### Manticore-4 production runtime and shell path
+
+- `manticore.js` defines the approved Manticore-4 Grenade Sentry contract: 30-second active duration and base cooldown, 480 placement range with a 46-unit footprint, 190–750 firing annulus, 1.45-second base interval, unlimited ammunition, and a sequential four-tube cycle. Its ballistic descriptor snapshots the target's current point without predictive lead and interpolates 0.50–1.05-second flight time plus a 120–220 world-unit arc.
+- Each explosion has base damage 240, full damage through radius 90, linear falloff to 35% at radius 240, boss multiplier 0.30, destructible multiplier 0.68, and base knockback 360 with Tank/Tech-Priest/boss multipliers 0.55/0.30/0.10. Damage scales by `1 + 0.05 × max(0, wave - 4)` and consumes shared Heavy Caliber, Overdrive Motors, and Rapid Redeployment helpers plus the Armory damage multiplier exactly once. Deterministic targeting ranks living-enemy clusters by weighted score, member count, anchor weight, shorter launcher distance, then input order; no line-of-sight test is part of this artillery core.
+- Placement preview, deployment, cancellation, active lifetime, wave-end stop, cooldown, and run reset use the independent `world.manticoreAbility`. Hold/release Q and Esc/RMB follow the same user contract as Bastion, while the router prevents the non-selected device from deploying or updating. Natural expiry and wave end remove the active installation, preserve already-fired shells, create a short visual-only shutdown effect, and start the effective cooldown; death, abort, menu return, and new-run reset clear all ability visuals and state.
+- Cluster targeting still requires an anchor in the inclusive 190–750 annulus. The head turns by the shortest angle at exactly 4 rad/s and may fire only at an error of at most 10 degrees. A ready shot timer remains at zero while the head finishes turning, then fires immediately without restarting the 1.45-second interval. Each shot advances `tubeIndex` through `0,1,2,3,0` without target-change reset.
+- Both Manticore PNGs are 1254×1254. The base alpha bounds are `(98,198)..(1155,1071)` inclusive and the head bounds are `(30,171)..(1218,1080)`. Both render in a 104-unit square. Head pivot is pixel `(343,573)`, normalized `(343/1254, 573/1254)`. The four inspected tube points are `(1190,411)`, `(1190,493)`, `(1190,580)`, and `(1190,674)`, producing normalized local offsets from the pivot of `(847/1254,-162/1254)`, `(847/1254,-80/1254)`, `(847/1254,7/1254)`, and `(847/1254,101/1254)`. Asset angle 0 already points strictly toward world +X, so no constant rotation correction is applied.
+- Production rotates the selected local tube offset by the active head angle, adds `active.x/y`, and passes that world launch point to `spawnManticoreShell(...)`. A shot also drives an 8-unit visual-only head recoil returning over 0.19 seconds and a 0.09-second white/yellow/orange launch flash with restrained smoke. Deployment scales in over 0.13 seconds with an allied acid-green ring; deactivation fades over 0.28 seconds with a green pulse and sparks. These visuals never alter shell origin after creation or active duration.
+- `manticore-shell.js` turns an existing shot descriptor plus an explicit launch point into a separate `world.manticoreShells` entry. Launch and target coordinates, flight time, arc height, tube index, wave, Heavy Caliber level, and Armory damage multiplier are copied at creation. Horizontal movement is linear, height is `sin(progress × PI) × arcHeight`, the target never follows an enemy, and no enemy/solid/player collision can detonate a shell before its fixed landing point.
+- Landing produces one radius-240 AoE event. Foe damage and boss scaling come from `manticore.js` and enter `applyDamageToFoe(..., { source: "manticore" })`; knockback enters `applyFoeKnockback(...)`; destructible damage enters `damageSolid(...)`, so barrels retain their ordinary chain-explosion ownership. The direct Manticore resolver has no player-damage callback, although a barrel it destroys may still damage the player through the existing secondary explosion path.
+- `world.manticoreExplosionEffects` owns a short-lived visual-only heavy flash, pressure rings, dust, and debris state. Shells and effects are cleared on death, abort, menu return, and new-run reset. Flight advances during `playing`, `wave_clear`, `perk_select`, and `intermission`, freezes while paused or outside an active run, and resolves before the playing-state `cleanupDeadFoes()` pass.
+- Manticore is never added to solids, foes, actor collision, cover, aggro, or projectile-blocking collections and has no HP. It is selectable through the pre-run popup and represented by the shared Q HUD. Its balance has not been revised after opening the device to players.
+- Manticore has dedicated one-shot launch and explosion SFX at `assets/audio/manticore-launch.mp3` and `assets/audio/manticore-explosion.mp3`. Both use runtime gain `0.5616` and playback rate `1.0` before the existing master/SFX volume multipliers. Launch playback occurs only after a shell is successfully spawned from the selected tube; explosion playback uses the shell runtime's one-time landing callback after AoE resolution and visual-effect creation, without calling the generic grenade explosion SFX. The existing cloned-node asset playback preserves overlapping one-shots. Additional servo, deploy, and shutdown SFX remain absent.
 
 ## 10. Current stable systems
 
@@ -214,6 +239,7 @@ The current build includes:
 - two run-only stored weapon slots with direct `1` / `2` / `3` switching;
 - Hunter Drone support;
 - targeted impact grenades with a three-charge HUD inventory;
+- the pre-run Engineering Loadout with run-locked Bastion-7 and Manticore-4 alternatives;
 - destructible cover, crates, and explosive barrels;
 - long-range Snipers with cover-blocked telegraphed hitscan attacks;
 - eight rotating battle music tracks.
@@ -413,7 +439,7 @@ Target frequency for build feel:
 
 ## 17. Meta progression
 
-There are **20** permanent `metaUpgrades`: 11 in the General/Tactical Protocols group, 6 in Armory, and 3 in Field Engineering. Heavy Caliber adds 6% Bastion damage per level, Overdrive Motors adds 4% Bastion fire rate per level, and Rapid Redeployment reduces Bastion cooldown by 4% per level; each is capped at level 5.
+There are **20** permanent `metaUpgrades`: 11 in the General/Tactical Protocols group, 6 in Armory, and 3 in Field Engineering. Heavy Caliber adds 6% engineering-device damage per level, Overdrive Motors adds 4% engineering-device fire rate per level, and Rapid Redeployment reduces engineering-device cooldown by 4% per level; each is capped at level 5 and applies to both Bastion-7 and Manticore-4.
 
 Meta progression uses credits, upgrade levels/costs, lifetime run statistics, and `block-zero-meta-v1` persistence. The Field Engineering entries reuse existing cost curves: Armory Damage for Heavy Caliber, Armory Fire Rate for Overdrive Motors, and Armory Range for Rapid Redeployment. Missing new ids default to 0 during normalization and appear on the next save without resetting old data. Never reset credits, levels, or saved statistics without an explicit request. Preserve all existing costs and effects unless a dedicated balance task says otherwise.
 
@@ -508,6 +534,7 @@ NUKE
 
 - targeted impact grenades added before Enemy Evolution work resumes;
 - Bastion-7 Field Engineering ability implemented in v0.10.0-alpha;
+- Manticore-4, the pre-run Engineering Loadout, shared Field Engineering progression, dedicated audio, and the redesigned main menu released in v0.11.0-alpha — Heavy Ordnance;
 - documentation audit;
 - centralized build version and visible menu label;
 - internal release checklist;

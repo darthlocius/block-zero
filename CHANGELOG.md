@@ -1,6 +1,94 @@
 # Changelog
 
-## [0.10.0-alpha] — In Development
+## [0.11.0-alpha] — Heavy Ordnance
+
+### Added
+
+- Added the Manticore-4 Grenade Sentry as the second selectable Field Engineering device.
+- Added a persistent pre-run Engineering Loadout that lets the player choose between Bastion-7 and Manticore-4 before each run.
+- Added a run-locked engineering-device snapshot so the selected sentry cannot be switched during combat.
+- Added dedicated Manticore base and rotating-head artwork with four individually cycled launch tubes.
+- Added ballistic Manticore shells with visible arcing flight, saved impact coordinates, and no homing or predictive lead.
+- Added heavy thermobaric area damage with full-damage and falloff zones, destructible damage, controlled knockback, boss reduction, and normal kill/reward integration.
+- Added deterministic cluster-based target selection that prioritizes high-value enemy groups without using random target scoring.
+- Added dedicated Manticore launch and explosion sound effects.
+- Added a shared Field Engineering Q HUD that displays the active run device and its Ready, Positioning, Active, and Cooldown states.
+- Added a CSS-native 2×2 four-tube Manticore icon for both the Engineering Loadout and combat HUD.
+- Added dependency-free modules for shared Field Engineering formulas, engineering loadout state, engineering-device routing, Manticore gameplay logic, and Manticore shell runtime.
+- Added native regression coverage for Field Engineering sharing, loadout persistence, device routing, Manticore targeting, ballistics, AoE, runtime shells, audio hooks, and lifecycle behavior.
+
+### Manticore-4
+
+- Manticore-4 remains active for 30 seconds and begins its 30-second base cooldown only after deactivation.
+- Placement range is 480 world units with a 70-unit player-clearance requirement.
+- The launcher has a 190-unit minimum firing range and a 750-unit maximum firing range.
+- Base fire interval is 1.45 seconds, with Overdrive Motors increasing fire rate through the shared Field Engineering progression.
+- Each firing event launches exactly one grenade and cycles the four tubes in the order 0 → 1 → 2 → 3 → 0.
+- The launcher fires at the target's current coordinates without predictive lead; already-fired shells continue toward their saved impact point if the target moves or dies.
+- Flight time scales from 0.50 seconds at minimum range to 1.05 seconds at maximum range, with arc height scaling from 120 to 220 world units.
+- Base explosion damage is 240.
+- Full damage applies within 90 world units.
+- Damage falls off to 35% at the 240-unit maximum explosion radius.
+- Bosses receive 30% of calculated Manticore explosion damage.
+- Destructible battlefield objects receive 68% of calculated explosion damage.
+- Base knockback is 360 before distance and target-type modifiers.
+- Manticore explosions do not directly damage the player, while secondary barrel explosions retain their normal behavior.
+- Shells ignore ordinary cover during flight and explosions are not shielded by cover.
+- Manticore has no HP, collision, enemy aggro role, or cover role.
+- Head rotation is limited to 4 rad/s and a ready shot waits until the launcher is within 10° of the selected target.
+- Manticore damage uses the same +5% per-wave scaling after wave 4 as Bastion-7 before Field Engineering and generic Armory multipliers.
+
+### Field Engineering
+
+- Heavy Caliber, Overdrive Motors, and Rapid Redeployment are now shared by both Bastion-7 and Manticore-4.
+- Heavy Caliber provides +6% engineering-device damage per level, up to +30%.
+- Overdrive Motors provides +4% engineering-device fire rate per level, up to +20%.
+- Rapid Redeployment reduces engineering-device cooldown by 4% per level, down to 24 seconds at level 5.
+- Existing `block-zero-meta-v1` progression remains compatible.
+- Engineering device preference is stored separately under `block-zero-engineering-loadout-v1`.
+- Only `preferredDevice` is persisted; the active run's `runDevice` remains run-only.
+
+### UI / UX
+
+- Moved Engineering Loadout selection out of the permanent main-menu layout into a dedicated pre-run popup opened by `START GAME`.
+- Added explicit `BEGIN RUN` confirmation so a run starts only after the engineering device is confirmed.
+- Saved engineering-device preference is automatically preselected when the popup opens.
+- Added keyboard-focus, `aria-pressed`, `inert`, `aria-hidden`, Esc cancellation, and backdrop-close behavior to the pre-run loadout flow.
+- Redesigned the main menu around the central soldier artwork instead of covering it with a rectangular control grid.
+- `START GAME` now anchors the composition above the central soldier and `EXIT` below it.
+- Remaining menu controls form mirrored left/right arcs on desktop while narrow screens fall back to a readable vertical layout.
+- Improved visibility of the game logo and central background artwork.
+- Redesigned the Manticore HUD/loadout icon from parallel bars into a readable four-tube 2×2 launcher face.
+- Reflowed the narrow combat utility HUD into a viewport-centered two-row grid so Field Engineering, grenades, and both weapon slots remain fully visible without changing the 760px combat geometry.
+
+### Audio
+
+- Added `manticore-launch.mp3`, played exactly once when a real Manticore shell is spawned.
+- Added `manticore-explosion.mp3`, played exactly once at actual shell detonation.
+- Manticore launch and explosion SFX use runtime gain `0.5616` and playback rate `1.0`.
+- Manticore one-shot effects use polyphonic playback so explosion tails are not cut off by subsequent launch sounds.
+- Manticore detonation does not layer the generic grenade explosion sound over its dedicated explosion sample.
+- Increased Bastion-7's sustained machine-gun runtime gain by 30%, from `0.432` to `0.5616`.
+- Bastion-7's base playback rate remains `0.94` and continues to track Overdrive Motors fire-rate scaling.
+- Bastion and Manticore audio continue to obey the existing master and SFX volume controls.
+
+### Changed
+
+- Engineering-device input now routes through a shared device-control layer while preserving physical `KeyQ` hold/release placement.
+- The shared Q HUD dynamically represents Bastion-7 or Manticore-4 according to the run-locked engineering loadout.
+- Main-menu layout is now responsive around the background composition rather than a single central button matrix.
+
+### Technical / Maintenance
+
+- Extracted shared Field Engineering formulas into a dependency-free module while preserving Bastion-7's existing external behavior.
+- Added an isolated engineering-loadout state module with safe persistence and backwards-safe defaults.
+- Added a small engineering-device routing layer so Q input remains independent of individual sentry implementations.
+- Kept Manticore gameplay and shell modules free from DOM/audio dependencies.
+- Integrated Manticore damage through the existing enemy damage, shield, armor, knockback, destructible, score, credit, combo, achievement, pickup, and cleanup paths.
+- Manticore kills do not create a weapon id, do not add to `weaponsUsed`, and do not falsely activate weapon-specific synergies.
+- Expanded the dependency-free regression suite to 197 tests before the final release pass.
+
+## [0.10.0-alpha] — Field Engineering
 
 ### Field Engineering
 

@@ -23,6 +23,11 @@ node --check i18n.js
 node --check storage.js
 node --check wave-planning.js
 node --check version.js
+node --check field-engineering.js
+node --check engineering-loadout.js
+node --check engineering-device-control.js
+node --check manticore.js
+node --check manticore-shell.js
 ```
 
 Also verify that `index.html` contains no duplicate DOM ids and that directly referenced `assets/...` paths exist.
@@ -84,18 +89,36 @@ The full reset also deletes `blockZeroLanguage` and any other `localStorage` dat
 
 ## 5. Main menu
 
-- [ ] Only `v0.10.0-alpha` is visible as the build label; it is readable but unobtrusive.
+- [ ] Only `v0.11.0-alpha` is visible as the build label; it is readable but unobtrusive.
 - [ ] Build label does not behave like a button or intercept pointer input.
+- [ ] The logo and central soldier artwork remain visible and are not covered by the menu controls.
+- [ ] Desktop layout places `START GAME` above the soldier, `EXIT` below it, and the remaining controls in mirrored left/right arcs.
+- [ ] Narrow layout falls back to a readable vertical flow with no horizontal overflow.
 - [ ] EN is the default on a fully clean origin.
 - [ ] EN/RU switching updates all visible menu and overlay text.
 - [ ] EN weapon HUD and pickup banners never show Russian internal registry labels; RU uses the translated weapon names in both paths.
 - [ ] Audio panel opens, closes, and applies master/music/effects levels.
 - [ ] Fullscreen buttons enter/exit true fullscreen and report the correct state.
+- [ ] Engineering Loadout selection is not permanently visible in the main menu.
 - [ ] Controls overlay opens and closes.
 - [ ] General/Tactical Protocol, Armory, and Field Engineering upgrade views open and switch tabs.
 - [ ] Synergy Guide opens and displays all five synergies.
 - [ ] Achievements opens and displays 16 cards with correctly aligned icons.
 - [ ] Hall of Fame opens, closes, and handles an empty list.
+
+### Engineering Loadout
+
+- [ ] `START GAME` opens Engineering Loadout without starting the run.
+- [ ] Bastion-7 and Manticore-4 are both available with correct EN/RU names and descriptions.
+- [ ] The saved preferred device is preselected when the popup opens.
+- [ ] Selecting a card updates and persists only `preferredDevice`.
+- [ ] `BEGIN RUN` snapshots `preferredDevice` into `runDevice`.
+- [ ] `runDevice` cannot be switched during combat.
+- [ ] `Esc` cancellation returns to the main menu without starting a run and restores focus to `START GAME`.
+- [ ] Backdrop cancellation returns to the main menu without starting a run.
+- [ ] Reload preserves `preferredDevice`.
+- [ ] Missing, malformed, invalid, or unknown stored device data falls back safely to Bastion-7.
+- [ ] No `runDevice` value is serialized.
 
 ## 6. Clean honest run
 
@@ -127,7 +150,7 @@ Start after the targeted reset:
 - [ ] `Main Menu` is centered in a second row, matches the secondary `Upgrades` style, and remains inside the panel in fullscreen and narrow layouts.
 - [ ] EN shows `Main Menu`; RU shows `Главное меню`.
 - [ ] `Main Menu` returns immediately through the normal results-to-menu path without starting a run, opening Upgrades, or saving a pending Hall of Fame result.
-- [ ] Returning this way hides the combat HUD and clears weapon slots, Bastion-7 state, active run cheats, grenades/in-flight grenade state, pause state, and other run-only state.
+- [ ] Returning this way hides the combat HUD and clears weapon slots, Bastion-7/Manticore state, Manticore shells/effects, active run cheats, grenades/in-flight grenade state, pause state, and other run-only state.
 - [ ] A result saved explicitly with `Save` remains in Hall of Fame after returning to the main menu.
 - [ ] `Try Again`, `Upgrades`, and `Save` still perform their existing actions.
 
@@ -138,7 +161,7 @@ Start after the targeted reset:
 - [ ] A new run starts on the pistol with both stored slots empty.
 - [ ] Physical `Digit1` selects the pistol; `Digit2` and `Digit3` select occupied slots and do nothing for empty slots.
 - [ ] Slot switching works under EN and RU layouts, only during `playing`, and does not affect text inputs or Forbidden Protocol entry.
-- [ ] The bottom-left utility HUD is one horizontal row: Bastion-7, grenade counter, slot 2, then slot 3.
+- [ ] The desktop bottom-left utility HUD is one horizontal row: selected Field Engineering device, grenade counter, slot 2, then slot 3; narrow viewports use the approved two-row grid.
 - [ ] Empty slots are visibly subdued, the active stored slot is highlighted, and pistol mode highlights neither stored slot.
 - [ ] SMG, shotgun, and plasma slots show distinct CSS pictograms and the codes `SMG`, `12G`, and `PLS`.
 - [ ] Grenade count, empty state, refill pulse, and empty pulse still behave as before.
@@ -246,7 +269,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] The CSS-native HUD card sits left of the grenade, transitions Active → Cooldown → Ready with active/cooldown time and no ammunition counter, remains readable in narrow and true 1920×1080 fullscreen layouts, and never uses the gameplay PNG as an icon.
 - [ ] EN/RU controls, status accessibility labels, and `KeyQ` behavior have full parity; both turret PNG assets load with alpha and no black rectangle.
 - [ ] Recoil/shake, head pivot, muzzle placement, deployment, and deactivation visuals remain unchanged during sustained fire.
-- [ ] Sustained fire starts one decoded `bastion7-machinegun-loop.wav` source on the first real shot, uses runtime gain `0.432`, does not restart per shot, survives brief target switches without stutter, and stops cleanly without an audible seam/click when fire ends.
+- [ ] Sustained fire starts one decoded `bastion7-machinegun-loop.wav` source on the first real shot, uses runtime gain `0.5616`, does not restart per shot, survives brief target switches without stutter, and stops cleanly without an audible seam/click when fire ends.
 - [ ] The louder loop remains clear over battle music for 20–30 seconds, does not clip or overload the mix, and still obeys SFX volume and mute.
 - [ ] Loop playback rate is `0.94` at Overdrive Motors 0, `1.0528` at level 3, and `1.128` at level 5, audibly following the 600-to-720 RPM gameplay cadence.
 - [ ] The Bastion firing loop follows the existing SFX volume/mute path and leaves no source after pause, wave end, natural shutdown, death, retry, abort, reset, or menu return; the former per-shot synthetic cue is absent.
@@ -260,7 +283,65 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] A pre-Field-Engineering `block-zero-meta-v1` save loads all old credits, levels, and lifetime statistics unchanged with the three new levels at 0; purchase/save/reload persists each new level under the same key.
 - [ ] `node --test tests/*.test.mjs` passes the production-importing turret tests and all prior storage/collision/Sniper regressions.
 
-## 12. Tech-Priest signal-wave rebalance
+## 12. Field Engineering — Manticore-4
+
+### Loadout and placement
+
+- [ ] Manticore-4 can be selected through the pre-run Engineering Loadout popup and remains selected after reload.
+- [ ] `BEGIN RUN` locks `runDevice` to `manticore4` and the shared Q HUD displays Manticore rather than Bastion.
+- [ ] Physical `KeyQ` hold shows the camera-correct Manticore preview and release deploys only at a valid point.
+- [ ] Right Click and the first `Esc` cancel positioning without deployment or cooldown.
+- [ ] Placement range is 480 world units and player clearance is 70 world units.
+- [ ] World bounds, live solids, living enemy overlap, and maximum-one-active validation behave correctly.
+
+### Runtime
+
+- [ ] Manticore remains active for 30 seconds and then deactivates without an explosion, damage, collision, or wreck.
+- [ ] Cooldown starts only after deactivation and uses the 30-second base value.
+- [ ] Rapid Redeployment reduces the effective cooldown by 4% per level, reaching 24 seconds at level 5 without changing active duration.
+- [ ] The launcher does not fire inside the 190-unit minimum range and cannot select anchors beyond the 750-unit maximum range.
+- [ ] Base fire interval is 1.45 seconds.
+- [ ] Overdrive Motors speeds the firing cadence through the shared formula without changing the Manticore audio sample playback rate.
+- [ ] Exactly one shell is launched per firing event and the visible tubes cycle `0 → 1 → 2 → 3 → 0` without resetting on target changes.
+
+### Targeting
+
+- [ ] Deterministic selection prefers higher-value clustered groups and does not use random target scoring.
+- [ ] A target anchor must respect the 190-unit dead zone even though collateral AoE may still damage other enemies inside that zone.
+- [ ] The launcher fires at the selected enemy's current coordinates without predictive lead.
+- [ ] Fast single targets can escape an already-saved impact point, and moving or dying targets do not redirect an in-flight shell.
+- [ ] Head rotation is limited to 4 rad/s; a ready shot waits until aim error is at most 10 degrees and waiting for rotation creates no false shot or launch sound.
+
+### Shell and explosion
+
+- [ ] Each shell follows a visible slow arc and lands at its saved target coordinates.
+- [ ] Shell flight ignores ordinary cover and cannot detonate early from enemy, solid, or player collision.
+- [ ] Full damage applies through 90 world units and falls linearly to 35% at the 240-unit outer radius.
+- [ ] Cover does not shield enemies from Manticore AoE.
+- [ ] Direct Manticore explosion damage never affects the player.
+- [ ] Barrels damaged by Manticore retain their normal secondary explosions, including normal player damage and chain reactions.
+- [ ] Bosses receive 30% of calculated Manticore damage and keep weak boss knockback.
+- [ ] Destructible battlefield objects receive 68% of calculated Manticore damage through the normal destructible path.
+- [ ] Tech-Priest shield and armor process Manticore damage through the normal enemy-damage path.
+
+### Audio
+
+- [ ] One successfully spawned shell plays exactly one dedicated `manticore-launch.mp3` one-shot; no spawned shell means no launch SFX.
+- [ ] One actual detonation plays exactly one dedicated `manticore-explosion.mp3` one-shot.
+- [ ] Manticore detonation does not add the generic grenade explosion sound.
+- [ ] Launch and explosion use runtime gain `0.5616` and playback rate `1.0`.
+- [ ] Launch and explosion tails can overlap without cutting off earlier one-shots.
+- [ ] Both samples obey existing SFX/master sliders and mute.
+
+### Integrity and lifecycle
+
+- [ ] Manticore kills retain normal score, credit, combo, achievement, and drop handling.
+- [ ] Manticore creates no weapon id, adds nothing to `weaponsUsed`, and does not activate weapon-specific synergies.
+- [ ] Wave end removes the active launcher and begins cooldown while allowing already-fired shells to complete.
+- [ ] Death, abort, results-to-menu, retry, and a new run clear Manticore ability state, shells, and explosion effects.
+- [ ] No Manticore runtime state or `runDevice` value is persisted in `localStorage`.
+
+## 13. Tech-Priest signal-wave rebalance
 
 ### First impact and telegraph
 
@@ -298,7 +379,7 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Consecutive impacts are about 4.85–6.05 seconds apart, and multiple impacts cannot start in the same frame.
 - [ ] Tech-Priest HP, shield, armor, blaster stats, ally-buff coefficients, spawn chance, pity logic, spawn timing, rewards, and loot are unchanged.
 
-## 13. Sniper
+## 14. Sniper
 
 ### Spawn planning and reset
 
@@ -338,18 +419,20 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] Aim-start, lock, and shot cues are distinct, obey SFX volume, are silent at zero SFX, and leave no looping node after death.
 - [ ] One and two-Sniper fights remain readable in windowed mode and true 1920×1080 fullscreen without new console errors or a noticeable FPS drop.
 
-## 14. Display modes
+## 15. Display modes
 
 - [ ] Non-fullscreen layout is usable at the normal viewport size.
 - [ ] True fullscreen resizes the real canvas and reveals more world area.
 - [ ] 1920×1080 fullscreen is readable.
 - [ ] A reduced browser window remains usable without horizontal page scroll.
+- [ ] At 390×844, the complete combat utility group is inside the viewport for both Bastion-7 and Manticore-4 in Ready, Positioning, Active, and Cooldown states; the Manticore 2×2 four-tube icon is intact.
+- [ ] At 480/600px intermediate width, Engineering, Grenade, weapon slot 2, and weapon slot 3 remain readable without clipping, overlap, or horizontal document scroll.
 - [ ] DOM HUD and canvas boss/bonus UI do not overlap critically.
 - [ ] Enemies are not hidden behind the HUD without readable radar/threat feedback.
 - [ ] Crosshair and shots align with the pointer after resize and fullscreen transitions.
 - [ ] Main menu, overlays, and version label do not introduce horizontal scroll.
 
-## 15. Final release gate
+## 16. Final release gate
 
 - [ ] All syntax checks pass.
 - [ ] `node --test tests/*.test.mjs` passes with no failed, cancelled, skipped, or todo tests.
@@ -360,7 +443,11 @@ Run at least one main-menu protocol test and one pause-menu protocol test:
 - [ ] `RICHMAN` exception test passes.
 - [ ] EN/RU test passes.
 - [ ] Windowed/fullscreen test passes.
+- [ ] Engineering Loadout test passes.
+- [ ] Bastion-7 test passes.
+- [ ] Manticore-4 test passes.
+- [ ] Bastion and Manticore audio tests pass.
 - [ ] Git diff has been reviewed and contains no unintended gameplay or asset changes.
-- [ ] A recoverable archive backup exists.
-- [ ] `v0.10.0-alpha` is visible in the main menu.
+- [ ] After the release owner creates the release commit and tag, a recoverable tag-based archive is created before publication.
+- [ ] `v0.11.0-alpha` is visible in the main menu.
 - [ ] `CHANGELOG.md` matches the candidate build.

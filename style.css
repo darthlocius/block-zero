@@ -458,10 +458,11 @@ h1 {
   inset: 0;
   z-index: 950;
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: center;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background:
     linear-gradient(180deg, rgba(3, 5, 9, 0.08), rgba(3, 5, 9, 0.36)),
     url("./assets/images/ui/main_menu_bg.png") center center / cover no-repeat;
@@ -524,20 +525,352 @@ h1 {
 .main-menu-content {
   position: relative;
   z-index: 2;
-  width: min(420px, calc(100vw - 40px));
-  margin-top: clamp(275px, 34vh, 365px);
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  width: min(100%, 1920px);
+  min-height: max(620px, 100dvh);
+  margin: 0 auto;
 }
 
 .main-menu-actions {
+  position: absolute;
+  inset: 0;
+}
+
+.main-menu-start,
+.main-menu-exit {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.main-menu-start {
+  top: clamp(220px, 34vh, 366px);
+  width: min(560px, calc(100vw - 48px));
+}
+
+.main-menu-start .main-menu-button {
+  width: 100%;
+  min-height: 54px;
+}
+
+.main-menu-exit {
+  bottom: clamp(12px, 2.4vh, 26px);
+  width: min(480px, calc(100vw - 48px));
+}
+
+.main-menu-exit .main-menu-button {
+  width: 100%;
+  min-height: 50px;
+}
+
+.main-menu-arc {
+  --main-menu-arc-width: clamp(290px, 16.667vw, 320px);
+  --main-menu-arc-edge: max(24px, calc(50% - 690px));
+  position: absolute;
+  top: clamp(290px, 38.9vh, 420px);
+  width: var(--main-menu-arc-width);
   display: grid;
+  grid-auto-rows: 48px;
+  gap: 16px;
+}
+
+.main-menu-arc-left {
+  left: var(--main-menu-arc-edge);
+}
+
+.main-menu-arc-right {
+  right: var(--main-menu-arc-edge);
+}
+
+.main-menu-arc-item {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.main-menu-arc-left .main-menu-arc-level-1 {
+  left: clamp(52px, 4.688vw, 90px);
+}
+
+.main-menu-arc-left .main-menu-arc-level-2 {
+  left: clamp(18px, 1.563vw, 30px);
+}
+
+.main-menu-arc-left .main-menu-arc-level-3 {
+  left: 0;
+}
+
+.main-menu-arc-left .main-menu-arc-level-4 {
+  left: clamp(20px, 1.823vw, 35px);
+}
+
+.main-menu-arc-right .main-menu-arc-level-1 {
+  right: clamp(52px, 4.688vw, 90px);
+}
+
+.main-menu-arc-right .main-menu-arc-level-2 {
+  right: clamp(18px, 1.563vw, 30px);
+}
+
+.main-menu-arc-right .main-menu-arc-level-3 {
+  right: 0;
+}
+
+.main-menu-arc-right .main-menu-arc-level-4 {
+  right: clamp(20px, 1.823vw, 35px);
+}
+
+.main-menu-audio-cluster {
+  z-index: 4;
+}
+
+.engineering-loadout-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1120;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 16px;
+  background:
+    radial-gradient(circle at center, rgba(116, 255, 77, 0.08), transparent 42%),
+    rgba(3, 5, 9, 0.58);
+  backdrop-filter: blur(4px);
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease, visibility 0s linear 180ms;
+}
+
+.engineering-loadout-overlay.visible {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 180ms ease, visibility 0s linear 0s;
+}
+
+.engineering-loadout-panel {
+  width: min(900px, calc(100vw - 40px));
+  max-height: calc(100dvh - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 18px;
+  border: 1px solid rgba(156, 255, 47, 0.24);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at top, rgba(116, 255, 77, 0.08), transparent 40%),
+    linear-gradient(180deg, rgba(9, 18, 15, 0.94), rgba(4, 9, 8, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 24px 64px rgba(0, 0, 0, 0.48),
+    0 0 32px rgba(116, 255, 77, 0.08);
+}
+
+.engineering-loadout-panel:focus {
+  outline: none;
+}
+
+.engineering-loadout-panel h2 {
+  margin: 0 0 12px;
+  color: #cfffaa;
+  font-family: "Russo One", sans-serif;
+  font-size: 0.86rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow: 0 0 12px rgba(116, 255, 77, 0.24);
+}
+
+.engineering-loadout-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.engineering-loadout-begin {
+  width: min(260px, 100%);
+}
+
+.engineering-loadout-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
+.engineering-device-card {
+  position: relative;
+  min-width: 0;
+  min-height: 122px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 7px;
+  padding: 11px 12px;
+  border: 1px solid rgba(201, 219, 193, 0.22);
+  border-radius: 13px;
+  background:
+    linear-gradient(145deg, rgba(25, 34, 37, 0.88), rgba(7, 11, 13, 0.92));
+  color: #e8eee5;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition:
+    transform 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.engineering-device-card:hover,
+.engineering-device-card:focus-visible {
+  transform: translateY(-1px);
+  outline: none;
+  border-color: rgba(156, 255, 47, 0.56);
+  background:
+    linear-gradient(145deg, rgba(28, 45, 34, 0.92), rgba(6, 14, 10, 0.94));
+}
+
+.engineering-device-card.selected {
+  border-color: rgba(156, 255, 47, 0.92);
+  background:
+    linear-gradient(145deg, rgba(24, 54, 30, 0.95), rgba(5, 17, 10, 0.96));
+  box-shadow:
+    inset 0 0 0 1px rgba(207, 255, 170, 0.12),
+    0 0 20px rgba(116, 255, 77, 0.2);
+}
+
+.engineering-device-card-head {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding-right: 66px;
+}
+
+.engineering-device-card-head strong {
+  color: #f0f8eb;
+  font-family: "Russo One", sans-serif;
+  font-size: 0.78rem;
+  line-height: 1.18;
+  letter-spacing: 0.03em;
+}
+
+.engineering-device-selected {
+  position: absolute;
+  display: none;
+  top: 9px;
+  right: 9px;
+  color: #bfff80;
+  font-family: "Russo One", sans-serif;
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+}
+
+.engineering-device-card.selected .engineering-device-selected {
+  display: block;
+}
+
+.engineering-device-description {
+  color: #c7d0c3;
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
+.engineering-device-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: auto;
+}
+
+.engineering-device-features > span {
+  padding: 3px 6px;
+  border: 1px solid rgba(156, 255, 47, 0.18);
+  border-radius: 999px;
+  background: rgba(156, 255, 47, 0.06);
+  color: #b8c9b2;
+  font-size: 0.59rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.engineering-device-pictogram {
+  position: relative;
+  width: 32px;
+  height: 26px;
+  display: block;
+  color: #9cff2f;
+  filter: drop-shadow(0 0 5px rgba(156, 255, 47, 0.38));
+}
+
+.engineering-device-pictogram-bastion::before,
+.engineering-device-pictogram-bastion::after,
+.engineering-device-pictogram-manticore::before,
+.engineering-device-pictogram-manticore::after {
+  content: "";
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.engineering-device-pictogram-bastion::before {
+  left: 4px;
+  top: 6px;
+  width: 15px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-radius: 5px 4px 3px 3px;
+  box-shadow: 13px 0 0 -2px rgba(156, 255, 47, 0.92);
+}
+
+.engineering-device-pictogram-bastion::after {
+  left: 5px;
+  bottom: 3px;
+  width: 23px;
+  height: 7px;
+  border: 2px solid currentColor;
+  border-radius: 5px 5px 3px 3px;
+}
+
+.engineering-device-pictogram-manticore::before,
+.manticore-hud-tubes {
+  width: 22px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+  background:
+    radial-gradient(circle at 5px 4px, #071009 0 1.8px, currentColor 2px 3px, transparent 3.2px),
+    radial-gradient(circle at 14px 4px, #071009 0 1.8px, currentColor 2px 3px, transparent 3.2px),
+    radial-gradient(circle at 5px 11px, #071009 0 1.8px, currentColor 2px 3px, transparent 3.2px),
+    radial-gradient(circle at 14px 11px, #071009 0 1.8px, currentColor 2px 3px, transparent 3.2px),
+    rgba(156, 255, 47, 0.08);
+}
+
+.engineering-device-pictogram-manticore::before {
+  left: 5px;
+  top: 1px;
+}
+
+.engineering-device-pictogram-manticore::after,
+.manticore-hud-base {
+  width: 13px;
+  height: 7px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 5px 5px;
+  background: rgba(156, 255, 47, 0.1);
+}
+
+.engineering-device-pictogram-manticore::after {
+  left: 10px;
+  top: 18px;
+}
+
 .main-menu-build-version {
-  margin: 9px 4px 0;
+  position: absolute;
+  right: 24px;
+  bottom: 18px;
+  margin: 0;
   color: rgba(156, 255, 47, 0.58);
   font-family: "Russo One", sans-serif;
   font-size: 0.68rem;
@@ -552,6 +885,7 @@ h1 {
 
 .main-menu-button,
 .main-menu-setting-row {
+  width: 100%;
   min-height: 48px;
   border-radius: 16px;
   border: 1px solid rgba(255, 213, 130, 0.2);
@@ -644,6 +978,10 @@ h1 {
 }
 
 .main-menu-audio-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  width: 100%;
   padding: 14px 16px;
   border-radius: 18px;
   border: 1px solid rgba(255, 213, 130, 0.18);
@@ -809,12 +1147,12 @@ body.has-main-menu .canvas-frame {
 .turret-hud {
   position: relative;
   display: grid;
-  grid-template-columns: 24px 30px minmax(24px, 1fr);
+  grid-template-columns: 24px 30px minmax(92px, 1fr);
   grid-template-rows: 30px 5px;
   align-items: center;
   column-gap: 6px;
   row-gap: 3px;
-  min-width: 102px;
+  min-width: 178px;
   padding: 7px 9px 6px;
   overflow: hidden;
   border: 1px solid rgba(156, 255, 47, 0.48);
@@ -865,7 +1203,9 @@ body.has-main-menu .canvas-frame {
 }
 
 .turret-hud-head,
-.turret-hud-base {
+.turret-hud-base,
+.manticore-hud-tubes,
+.manticore-hud-base {
   position: absolute;
   display: block;
   box-sizing: border-box;
@@ -928,16 +1268,62 @@ body.has-main-menu .canvas-frame {
   border-right: 3px solid currentColor;
 }
 
-.turret-hud-value {
+.manticore-hud-tubes,
+.manticore-hud-base {
+  display: none;
+}
+
+.turret-hud.is-manticore .turret-hud-head,
+.turret-hud.is-manticore .turret-hud-base {
+  display: none;
+}
+
+.turret-hud.is-manticore .manticore-hud-tubes,
+.turret-hud.is-manticore .manticore-hud-base {
+  display: block;
+}
+
+.manticore-hud-tubes {
+  left: 4px;
+  top: 1px;
+}
+
+.manticore-hud-base {
+  left: 9px;
+  top: 18px;
+}
+
+.turret-hud-copy {
   grid-column: 3;
   grid-row: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.turret-hud-name {
+  overflow: hidden;
+  color: #dfffc4;
+  font-family: "Russo One", sans-serif;
+  font-size: 0.67rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.turret-hud-value {
   min-width: 24px;
   color: #bfff80;
   font-family: "Russo One", sans-serif;
-  font-size: 1.2rem;
+  font-size: 0.7rem;
   font-weight: 700;
   line-height: 1;
-  text-align: center;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
   text-shadow:
     0 0 8px rgba(156, 255, 47, 0.58),
     0 0 16px rgba(116, 255, 77, 0.22);
@@ -3667,15 +4053,151 @@ body.is-game-fullscreen {
   }
 }
 
+@media (max-width: 1360px) and (min-width: 761px) {
+  .main-menu-start {
+    width: min(440px, calc(100vw - 48px));
+  }
+
+  .main-menu-start .main-menu-button {
+    min-height: 48px;
+  }
+
+  .main-menu-arc {
+    top: clamp(290px, 40vh, 320px);
+    gap: 10px;
+  }
+
+  .main-menu-exit {
+    width: min(380px, calc(100vw - 48px));
+    bottom: 8px;
+  }
+
+  .main-menu-exit .main-menu-button {
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 760px) {
   .main-menu-content {
-    margin-top: clamp(190px, 28vh, 260px);
+    min-height: 0;
+    margin: clamp(24px, 4vh, 38px) auto 0;
     width: min(360px, calc(100vw - 32px));
+    padding-bottom: 24px;
+  }
+
+  .main-menu-actions {
+    position: relative;
+    inset: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .engineering-loadout-options {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .main-menu-start,
+  .main-menu-exit,
+  .main-menu-arc,
+  .main-menu-arc-item,
+  .main-menu-audio-panel,
+  .main-menu-build-version {
+    position: static;
+    width: 100%;
+    transform: none;
+  }
+
+  .main-menu-start {
+    order: 1;
+  }
+
+  .main-menu-arc {
+    display: contents;
+  }
+
+  #mainMenuControlsButton {
+    order: 2;
+  }
+
+  #mainMenuFullscreenButton {
+    order: 3;
+  }
+
+  #mainMenuUpgradesButton {
+    order: 4;
+  }
+
+  #mainMenuSynergyGuideButton {
+    order: 5;
+  }
+
+  #mainMenuAchievementsButton {
+    order: 6;
+  }
+
+  #mainMenuHallButton {
+    order: 7;
+  }
+
+  .main-menu-audio-cluster {
+    order: 8;
+  }
+
+  .main-menu-setting-row {
+    order: 9;
+  }
+
+  .main-menu-exit {
+    order: 10;
+  }
+
+  .main-menu-arc-left .main-menu-arc-item,
+  .main-menu-arc-right .main-menu-arc-item {
+    left: auto;
+    right: auto;
+  }
+
+  .main-menu-audio-panel {
+    margin-top: 8px;
+  }
+
+  .main-menu-build-version {
+    margin: 10px 4px 0;
   }
 
   .main-menu-button,
   .main-menu-setting-row {
     min-height: 44px;
+  }
+
+  .engineering-loadout-overlay {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
+  .engineering-loadout-panel {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 24px);
+    margin: auto 0;
+    padding: 14px;
+  }
+
+  .engineering-loadout-panel h2 {
+    margin-bottom: 10px;
+  }
+
+  .engineering-device-card {
+    min-height: 112px;
+  }
+
+  .engineering-loadout-actions {
+    margin-top: 10px;
+  }
+
+  .engineering-loadout-begin {
+    width: 100%;
   }
 
   .controls-modal-grid {
@@ -3716,14 +4238,40 @@ body.is-game-fullscreen {
 
 @media (max-width: 720px) {
   .combat-utility-hud {
-    left: 10px;
-    bottom: 10px;
+    position: fixed;
+    left: 50%;
+    bottom: max(10px, calc((100dvh - var(--game-viewport-height, 460px)) / 2 + 10px));
+    width: min(360px, calc(100vw - 16px));
+    grid-template-columns: minmax(178px, 1fr) 116px;
+    display: grid;
     gap: 7px;
-    transform: scale(0.82);
+    transform: translateX(-50%);
+    transform-origin: center bottom;
+  }
+
+  .turret-hud,
+  .grenade-hud,
+  .weapon-slot-card {
+    min-width: 0;
+  }
+
+  .grenade-hud {
+    justify-content: center;
+    gap: 7px;
+    padding: 7px 8px;
   }
 
   .weapon-slots-hud {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
+  }
+
+  .fullscreen-root:fullscreen .combat-utility-hud {
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
   }
 
   .achievement-toast-root {

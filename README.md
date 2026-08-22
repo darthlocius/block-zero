@@ -1,6 +1,6 @@
 # Block Zero
 
-Current build: **v0.10.0-alpha**
+Current build: **v0.11.0-alpha**
 
 Block Zero is a browser-based top-down wave-survival shooter set in dark industrial ruins. Fight escalating enemy waves, switch weapons in the field, choose augments between waves, and assemble combat synergies while trying to survive as long as possible.
 
@@ -19,7 +19,7 @@ Block Zero is in alpha and active development. The main survival loop is playabl
 - Five tag-driven combat synergies with guide and progress feedback
 - Hunter Drone support and run-based dual weapon slots
 - Targeted impact grenades with arcing flight, area damage, and a limited three-charge inventory
-- Bastion-7 Sentry with manual world-space placement and automated cover-aware projectile fire
+- Selectable Field Engineering devices: the rapid-fire Bastion-7 Sentry and heavy thermobaric Manticore-4 Grenade Sentry
 - Permanent General/Tactical Protocol, Armory, and Field Engineering upgrades
 - Sixteen achievements, Hall of Fame records, and detailed run summaries
 - Pause and death flows, plus hidden old-school Forbidden Protocols
@@ -42,11 +42,17 @@ Move close to a weapon pickup and hold `E`. A new weapon fills the first empty s
 
 Press the physical `G` key to throw a grenade toward the world-space cursor. The target is limited to 720 world units and shown by a landing marker while the grenade travels along a visible arc. Its impact damages groups of enemies, respects the Tech-Priest's shield and armor, and can destroy cover or trigger explosive barrels. A run starts with three grenades and restores one charge at the beginning of each wave after the first, up to the maximum of three. The grenade itself does not directly damage the player.
 
-## Field Engineering: Bastion-7
+## Field Engineering
 
-Hold the physical `Q` key to position the Bastion-7 Sentry at the world-space cursor, then release `Q` to deploy it. Right Click or `Esc` cancels placement without starting the cooldown. A valid position must be inside the battlefield, within placement range, clear of the player, enemies, and live solid cover, and available while no sentry is already active.
+`START GAME` opens a pre-run Engineering Loadout popup with Bastion-7 and Manticore-4 choices. The preferred device persists between sessions and is preselected the next time the popup opens. `BEGIN RUN` locks that choice for the complete run; it cannot be switched during combat. Hold the physical `Q` key to position the selected device at the world-space cursor, then release `Q` to deploy it. Right Click or `Esc` cancels placement without starting the cooldown.
+
+### Bastion-7
 
 The Bastion-7 uses separate base and rotating-head sprites, selects the nearest visible enemy, and fires visible projectiles continuously at full auto until its 30-second active phase ends or the wave finishes. It has unlimited ammunition, 10 base damage, and gains 5% damage per wave after wave 4. Its 30-second base cooldown starts only after deactivation. Permanent Field Engineering upgrades improve Bastion damage, fire rate, and redeployment cooldown. Turret bullets stop against cover without damaging it. The sentry has no HP, collision, persistence, or enemy aggro role; player and enemy actors pass through it and enemies continue to target the player.
+
+### Manticore-4
+
+The Manticore-4 is a heavy thermobaric area-damage sentry built for clustered enemies. It cannot fire inside its 190-unit dead zone and reaches targets up to 750 units away with slow visible arcing shells. Each shell commits to the target's current position without predictive lead, making the launcher powerful against groups but unreliable against fast single targets that can escape the saved impact point. Manticore remains active for 30 seconds, begins cooldown only after deactivation, and uses the same Heavy Caliber, Overdrive Motors, and Rapid Redeployment upgrades as Bastion-7.
 
 ## Enemies
 
@@ -61,7 +67,7 @@ Every fourth wave is a boss wave. Three boss templates rotate through the run: M
 
 ## Meta progression and builds
 
-Runs award credits for permanent upgrades. The current build has 20 upgrades split between general Tactical Protocols, Armory improvements, and the three-upgrade Field Engineering branch for Bastion-7. During a run, 33 possible augments contribute tags toward five synergies: Bullet Storm, Shock Corridor, Crowd Control, Scavenger Loop, and Hunter Swarm.
+Runs award credits for permanent upgrades. The current build has 20 upgrades split between general Tactical Protocols, Armory improvements, and the three-upgrade Field Engineering branch shared by Bastion-7 and Manticore-4. During a run, 33 possible augments contribute tags toward five synergies: Bullet Storm, Shock Corridor, Crowd Control, Scavenger Loop, and Hunter Swarm.
 
 Achievements are trophies only and do not grant gameplay rewards. Runs that use hidden run-affecting protocols are kept out of honest earnings, achievements, statistics, and Hall of Fame records.
 
@@ -76,8 +82,8 @@ Achievements are trophies only and do not grant gameplay rewards. Runs that use 
 - `3` — switch to weapon slot 3
 - Hold `E` near a weapon — store or replace it and equip it
 - `G` — throw a targeted impact grenade
-- Hold `Q`, move the mouse, and release `Q` — deploy the Bastion-7 Sentry
-- Right Click or `Esc` while positioning — cancel Bastion-7 placement
+- Hold `Q`, move the mouse, and release `Q` — deploy the selected Field Engineering device
+- Right Click or `Esc` while positioning — cancel Field Engineering placement
 - `Esc` — pause/resume or close the current overlay
 - Fullscreen — use the fullscreen button in the UI
 
@@ -101,7 +107,7 @@ Then open [http://localhost:8000](http://localhost:8000). If updated assets appe
 
 ## Saving and reset
 
-Credits, upgrades, achievements, Hall of Fame records, the last player name, and the selected language are stored in browser `localStorage`. Weapon slots and the Bastion-7 ability state are run-only and are never persisted. Clearing site data resets saved progress. See `docs/RELEASE_CHECKLIST.md` for targeted clean-profile commands used during release testing.
+Credits and meta progression, achievements, Hall of Fame records, the last player name, the selected language, and the selected Engineering Loadout preference are stored in browser `localStorage`. The run-locked `runDevice`, weapon slots, active turret state, in-flight Manticore shells, and other runtime Field Engineering state are never persisted between runs. Clearing site data resets saved progress. See `docs/RELEASE_CHECKLIST.md` for targeted clean-profile commands used during release testing.
 
 ## Current limitations
 
@@ -126,7 +132,12 @@ A possible Steam release is a long-term goal, not a scheduled commitment.
 - `main.js` — bootstrap and game loop orchestration
 - `game.js` — shared state, content definitions, progression, achievements, and run lifecycle
 - `input.js`, `player.js`, `enemy.js` — controls and actor behavior
-- `turret.js` — dependency-free Bastion-7 configuration, placement, targeting, cooldown, and runtime logic
+- `field-engineering.js` — shared Field Engineering upgrade and scaling formulas
+- `engineering-loadout.js` — preferred/run engineering-device state and persistence
+- `engineering-device-control.js` — shared Q-device placement routing
+- `turret.js` — Bastion-7 configuration, placement, targeting, cooldown, and runtime logic
+- `manticore.js` — pure Manticore targeting, balance, placement, and firing logic
+- `manticore-shell.js` — ballistic shell flight, detonation, and explosion runtime
 - `meta-progression.js` — dependency-free permanent upgrade registry, costs, purchase guards, and save normalization
 - `grenade.js` — targeted grenade flight, impact damage, effects, and wave refill
 - `bullet.js`, `collision.js` — projectiles, hits, destructibles, and explosions

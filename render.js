@@ -23,6 +23,7 @@
 } from "./game.js";
 import { SNIPER_ATTACK, TECHPRIEST_SIGNAL_WAVE } from "./enemy.js";
 import { t } from "./i18n.js";
+import { MANTICORE_CONFIG } from "./manticore.js";
 import { TURRET_CONFIG } from "./turret.js";
 
 // Canvas rendering for the world, actors, effects, and HUD.
@@ -515,6 +516,160 @@ function drawGrenades() {
   }
 }
 
+function drawManticoreExplosionEffects() {
+  for (const effect of world.manticoreExplosionEffects) {
+    if (!isWorldCircleVisible(effect.x, effect.y, effect.radius)) continue;
+
+    const lifeRatio = clamp(effect.life / effect.maxLife, 0, 1);
+    const progress = 1 - lifeRatio;
+    const flashAlpha = Math.max(0, 1 - progress * 4.5);
+    const primaryRadius = effect.radius * (0.12 + progress * 0.88);
+    const secondaryProgress = clamp((progress - 0.12) / 0.88, 0, 1);
+
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    const flash = ctx.createRadialGradient(
+      effect.x,
+      effect.y,
+      0,
+      effect.x,
+      effect.y,
+      effect.radius * (0.34 + progress * 0.28),
+    );
+    flash.addColorStop(0, `rgba(255, 248, 211, ${0.92 * flashAlpha})`);
+    flash.addColorStop(0.2, `rgba(255, 177, 72, ${0.68 * flashAlpha})`);
+    flash.addColorStop(0.62, `rgba(190, 87, 28, ${0.24 * lifeRatio})`);
+    flash.addColorStop(1, "rgba(98, 38, 15, 0)");
+    ctx.fillStyle = flash;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, effect.radius, 0, TAU);
+    ctx.fill();
+
+    ctx.globalAlpha = lifeRatio * 0.68;
+    ctx.strokeStyle = "#ffd18a";
+    ctx.lineWidth = 10 - progress * 7;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, primaryRadius, 0, TAU);
+    ctx.stroke();
+
+    if (secondaryProgress > 0) {
+      ctx.globalAlpha = (1 - secondaryProgress) * 0.42;
+      ctx.strokeStyle = "#ff8d3d";
+      ctx.lineWidth = 7 - secondaryProgress * 4;
+      ctx.beginPath();
+      ctx.arc(
+        effect.x,
+        effect.y,
+        effect.radius * (0.16 + secondaryProgress * 0.74),
+        0,
+        TAU,
+      );
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    ctx.save();
+    const smokeRadius = effect.radius * (0.18 + progress * 0.34);
+    const smoke = ctx.createRadialGradient(
+      effect.x,
+      effect.y,
+      smokeRadius * 0.08,
+      effect.x,
+      effect.y,
+      smokeRadius,
+    );
+    smoke.addColorStop(0, `rgba(39, 31, 24, ${0.62 * lifeRatio})`);
+    smoke.addColorStop(0.5, `rgba(72, 57, 42, ${0.34 * lifeRatio})`);
+    smoke.addColorStop(1, "rgba(83, 66, 48, 0)");
+    ctx.fillStyle = smoke;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, smokeRadius, 0, TAU);
+    ctx.fill();
+
+    for (let index = 0; index < 14; index += 1) {
+      const angle = (index / 14) * TAU + 0.37;
+      const speedBias = 0.58 + (index % 4) * 0.1;
+      const distance = effect.radius * progress * speedBias;
+      const debrisX = effect.x + Math.cos(angle) * distance;
+      const debrisY = effect.y + Math.sin(angle) * distance;
+      ctx.globalAlpha = lifeRatio * (0.42 + (index % 3) * 0.12);
+      ctx.fillStyle = index % 4 === 0 ? "#b86a31" : "#665744";
+      ctx.save();
+      ctx.translate(debrisX, debrisY);
+      ctx.rotate(angle + progress * (index % 2 ? 5 : -4));
+      ctx.fillRect(-2.8, -1.2, 5.6, 2.4);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+function drawManticoreShells() {
+  for (const shell of world.manticoreShells) {
+    const drawY = shell.y - shell.height;
+    const visibleCenterY = (shell.y + drawY) * 0.5;
+    const visibleRadius = Math.max(34, shell.height * 0.5 + 26);
+    if (!isWorldCircleVisible(shell.x, visibleCenterY, visibleRadius)) continue;
+
+    const heightRatio = shell.arcHeight > 0
+      ? clamp(shell.height / shell.arcHeight, 0, 1)
+      : 0;
+
+    ctx.save();
+    ctx.globalAlpha = 0.42 - heightRatio * 0.22;
+    ctx.fillStyle = "#030403";
+    ctx.beginPath();
+    ctx.ellipse(
+      shell.x,
+      shell.y + 4,
+      13 - heightRatio * 3,
+      5.4 - heightRatio * 1.5,
+      shell.rotation,
+      0,
+      TAU,
+    );
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(shell.x, drawY);
+    ctx.rotate(shell.rotation);
+
+    const glow = ctx.createRadialGradient(8, 0, 0, 8, 0, 14);
+    glow.addColorStop(0, "rgba(255, 175, 68, 0.34)");
+    glow.addColorStop(0.42, "rgba(255, 112, 40, 0.12)");
+    glow.addColorStop(1, "rgba(255, 96, 32, 0)");
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(8, 0, 14, 0, TAU);
+    ctx.fill();
+
+    roundRect(-10, -4.8, 18, 9.6, 3.2);
+    ctx.fillStyle = "#303526";
+    ctx.fill();
+    ctx.lineWidth = 1.25;
+    ctx.strokeStyle = "#777761";
+    ctx.stroke();
+
+    ctx.fillStyle = "rgba(178, 181, 139, 0.26)";
+    ctx.fillRect(-6.8, -3.1, 10.8, 1.5);
+    ctx.fillStyle = "#ba5b2d";
+    ctx.beginPath();
+    ctx.moveTo(8, -3.8);
+    ctx.lineTo(12.5, 0);
+    ctx.lineTo(8, 3.8);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = "#9cff2f";
+    ctx.fillRect(-5.8, -5.9, 4.6, 2.2);
+    ctx.globalAlpha = 0.5 + Math.sin(shell.visualProgress * Math.PI * 6) * 0.2;
+    ctx.fillStyle = "#dcffb3";
+    ctx.fillRect(-5.1, -5.45, 3.2, 0.7);
+    ctx.restore();
+  }
+}
+
 function drawTurretPlacementGuides() {
   const placement = world.turretAbility?.placement;
   if (!placement?.active || !placement.point) return;
@@ -561,6 +716,36 @@ function drawTurretPlacementGuides() {
     0,
     TAU,
   );
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawManticorePlacementGuides() {
+  const placement = world.manticoreAbility?.placement;
+  if (!placement?.active || !placement.point) return;
+
+  const color = placement.valid ? "116, 255, 77" : "255, 82, 64";
+  const radius = MANTICORE_CONFIG.footprintRadius;
+  ctx.save();
+  const glow = ctx.createRadialGradient(
+    placement.point.x,
+    placement.point.y,
+    radius * 0.2,
+    placement.point.x,
+    placement.point.y,
+    radius * 1.55,
+  );
+  glow.addColorStop(0, `rgba(${color}, 0.18)`);
+  glow.addColorStop(1, `rgba(${color}, 0)`);
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(placement.point.x, placement.point.y, radius * 1.55, 0, TAU);
+  ctx.fill();
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = `rgba(${color}, 0.84)`;
+  ctx.beginPath();
+  ctx.arc(placement.point.x, placement.point.y, radius, 0, TAU);
   ctx.stroke();
   ctx.restore();
 }
@@ -729,6 +914,207 @@ function drawBastion7() {
       {
         alpha: TURRET_CONFIG.visual.ghostAlpha,
         scale: 1,
+        ghost: true,
+        valid: placement.valid,
+      },
+    );
+  }
+}
+
+function drawManticoreSprite(manticore, options = {}) {
+  const visual = MANTICORE_CONFIG.visual;
+  const alpha = options.alpha ?? 1;
+  const scale = options.scale ?? 1;
+  const size = visual.renderSize * scale;
+  const baseImage = assets.getImage("ally_manticore_base");
+  const headImage = assets.getImage("ally_manticore_head");
+  const recoil = Math.max(0, manticore.recoil || 0) * scale;
+
+  ctx.save();
+  ctx.translate(manticore.x, manticore.y);
+  ctx.globalAlpha = alpha;
+  if (options.ghost) {
+    ctx.filter = options.valid
+      ? "brightness(1.1) saturate(1.12)"
+      : "grayscale(0.48) sepia(0.9) hue-rotate(305deg) saturate(2.8) brightness(0.72)";
+  }
+
+  ctx.save();
+  ctx.globalAlpha *= options.ghost ? 0.42 : 0.38;
+  ctx.fillStyle = options.valid === false ? "#2b0807" : "#030704";
+  ctx.beginPath();
+  ctx.ellipse(0, 9 * scale, size * 0.45, size * 0.29, 0, 0, TAU);
+  ctx.fill();
+  ctx.restore();
+
+  if (baseImage) {
+    ctx.drawImage(baseImage, -size / 2, -size / 2, size, size);
+  } else {
+    ctx.fillStyle = "#293127";
+    ctx.strokeStyle = "#9cff2f";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.4, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  ctx.save();
+  ctx.rotate(manticore.angle || 0);
+  ctx.translate(-recoil, 0);
+  if (headImage) {
+    ctx.drawImage(
+      headImage,
+      -visual.headPivotX * size,
+      -visual.headPivotY * size,
+      size,
+      size,
+    );
+  } else {
+    ctx.fillStyle = "#586326";
+    ctx.strokeStyle = "#b8d92f";
+    ctx.lineWidth = 2;
+    ctx.fillRect(-size * 0.2, -size * 0.18, size * 0.62, size * 0.36);
+    ctx.strokeRect(-size * 0.2, -size * 0.18, size * 0.62, size * 0.36);
+  }
+
+  if (!options.ghost && manticore.launchFlash) {
+    const flash = manticore.launchFlash;
+    const flashRatio = clamp(flash.remaining / flash.duration, 0, 1);
+    const offset = visual.tubeOffsets[flash.tubeIndex];
+    if (offset) {
+      const launchX = offset.x * size;
+      const launchY = offset.y * size;
+      ctx.save();
+      ctx.translate(launchX, launchY);
+      ctx.globalCompositeOperation = "screen";
+      ctx.globalAlpha = flashRatio;
+      const launchGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 20 * scale);
+      launchGlow.addColorStop(0, "rgba(255, 255, 225, 0.98)");
+      launchGlow.addColorStop(0.28, "rgba(255, 214, 112, 0.9)");
+      launchGlow.addColorStop(0.68, "rgba(255, 116, 40, 0.46)");
+      launchGlow.addColorStop(1, "rgba(255, 92, 30, 0)");
+      ctx.fillStyle = launchGlow;
+      ctx.beginPath();
+      ctx.arc(0, 0, 20 * scale, 0, TAU);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255, 250, 215, 0.96)";
+      ctx.beginPath();
+      ctx.moveTo(-2 * scale, 0);
+      ctx.lineTo(18 * scale, -6 * scale);
+      ctx.lineTo(12 * scale, 0);
+      ctx.lineTo(18 * scale, 6 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      ctx.save();
+      ctx.globalAlpha = flashRatio * 0.34;
+      ctx.fillStyle = "#7d7869";
+      for (let index = 0; index < 3; index += 1) {
+        ctx.beginPath();
+        ctx.arc(
+          launchX - (5 + index * 5) * scale,
+          launchY - (index - 1) * 3 * scale,
+          (3.5 + index * 1.2) * scale,
+          0,
+          TAU,
+        );
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawManticore4() {
+  const ability = world.manticoreAbility;
+  if (!ability) return;
+
+  if (ability.deactivation) {
+    const fading = ability.deactivation;
+    const fade = clamp(fading.fadeRemaining / fading.fadeDuration, 0, 1);
+    const progress = 1 - fade;
+    drawManticoreSprite(fading, {
+      alpha: fade * 0.82,
+      scale: 0.96 + fade * 0.04,
+    });
+    ctx.save();
+    ctx.strokeStyle = `rgba(156, 255, 47, ${fade * 0.68})`;
+    ctx.lineWidth = 2 - progress * 0.8;
+    ctx.beginPath();
+    ctx.arc(
+      fading.x,
+      fading.y,
+      MANTICORE_CONFIG.footprintRadius + progress * 28,
+      0,
+      TAU,
+    );
+    ctx.stroke();
+    for (let index = 0; index < 6; index += 1) {
+      const angle = fading.visualTime * 7 + index * TAU / 6;
+      const distance = 24 + progress * 24;
+      ctx.fillStyle = index % 2 ? "#9cff2f" : "#e2ffc0";
+      ctx.globalAlpha = fade * 0.7;
+      ctx.fillRect(
+        fading.x + Math.cos(angle) * distance - 1.4,
+        fading.y + Math.sin(angle) * distance - 1.4,
+        2.8,
+        2.8,
+      );
+    }
+    ctx.restore();
+  }
+
+  if (ability.active) {
+    const manticore = ability.active;
+    const deployProgress = clamp(
+      manticore.deployElapsed / MANTICORE_CONFIG.deployDuration,
+      0,
+      1,
+    );
+    const eased = 1 - (1 - deployProgress) ** 3;
+    drawManticoreSprite(manticore, {
+      alpha: 0.58 + eased * 0.42,
+      scale: 0.76 + eased * 0.24,
+    });
+
+    if (deployProgress < 1) {
+      ctx.save();
+      ctx.globalCompositeOperation = "screen";
+      ctx.strokeStyle = `rgba(156, 255, 47, ${(1 - deployProgress) * 0.78})`;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.arc(
+        manticore.x,
+        manticore.y,
+        MANTICORE_CONFIG.footprintRadius + deployProgress * 34,
+        0,
+        TAU,
+      );
+      ctx.stroke();
+      ctx.fillStyle = `rgba(214, 255, 179, ${(1 - deployProgress) * 0.18})`;
+      ctx.beginPath();
+      ctx.arc(manticore.x, manticore.y, 22 + deployProgress * 15, 0, TAU);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  const placement = ability.placement;
+  if (placement?.active && placement.point) {
+    drawManticoreSprite(
+      {
+        x: placement.point.x,
+        y: placement.point.y,
+        angle: 0,
+        recoil: 0,
+        launchFlash: null,
+      },
+      {
+        alpha: MANTICORE_CONFIG.visual.ghostAlpha,
         ghost: true,
         valid: placement.valid,
       },
@@ -2494,6 +2880,7 @@ function render() {
   drawTerrain();
   drawGroundEffects();
   drawTurretPlacementGuides();
+  drawManticorePlacementGuides();
   drawGrenadeLandingMarkers();
   drawTechpriestSignalTelegraphs();
   drawDeathEffects();
@@ -2501,10 +2888,13 @@ function render() {
   drawPickups();
   drawWeaponPickupPrompt();
   drawParticles();
+  drawManticoreExplosionEffects();
   drawBastion7();
+  drawManticore4();
   drawFoes();
   drawSniperAttackEffects();
   drawGrenades();
+  drawManticoreShells();
   drawHunterDrone();
   drawPlayer();
   ctx.restore();
